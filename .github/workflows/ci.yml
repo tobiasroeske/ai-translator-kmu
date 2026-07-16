@@ -1,0 +1,83 @@
+# =============================================================================
+# CI — Meeting Intelligence
+# =============================================================================
+# Runs on every push to main and on every pull request. The `quality` job is
+# the merge gate (lint + format + types + build); the `docker` job proves the
+# production image still builds. Make both "required status checks" in the repo
+# settings (Branch protection) so nothing merges to main while they're red.
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same ref — saves CI minutes when you push
+# several times in a row to a branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Static checks + production build. This is the real merge gate.
+  # ---------------------------------------------------------------------------
+  quality:
+    name: Lint, types & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # action-setup reads the pnpm version from package.json#packageManager,
+      # so CI always matches the version pinned locally and in the Dockerfile.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # --frozen-lockfile fails if pnpm-lock.yaml is out of sync — exactly the
+      # class of bug that broke the Docker build before.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint, format & typecheck
+        run: pnpm ci:test
+
+      - name: Build
+        # next build also typechecks, but it's the strongest end-to-end signal.
+        # Dummy NEXT_PUBLIC_* values: build inlines them, but we only need the
+        # build to succeed here — real values come from the deploy environment.
+        run: pnpm build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: dummy-key-for-ci-build
+
+  # ---------------------------------------------------------------------------
+  # Verify the production Dockerfile still builds. Catches issues the plain
+  # `pnpm build` can't — e.g. the pnpm `allowBuilds` breakage in the deps stage.
+  # We build but never push: this is a validation gate, not a release step.
+  # ---------------------------------------------------------------------------
+  docker:
+    name: Docker image build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          # Use the GitHub Actions cache so repeat builds reuse layers.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co
+            NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=dummy-key-for-ci-build

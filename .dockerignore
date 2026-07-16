@@ -1,0 +1,59 @@
+# =============================================================================
+# .dockerignore — Meeting Intelligence
+# =============================================================================
+# Excludes files that should never enter the Docker build context.
+# A tight .dockerignore means faster builds (less data sent to the daemon)
+# and no risk of accidentally leaking secrets into image layers.
+# =============================================================================
+
+# --- Version control & editor artifacts ---
+.git
+.gitignore
+.gitattributes
+.github
+.vscode
+.idea
+*.swp
+*.swo
+
+# --- Local environment files (secrets must never enter the image) ---
+.env
+.env.*
+!.env.example        # keep the example as documentation reference
+
+# --- Next.js build artifacts (rebuilt inside Docker, not copied in) ---
+.next
+out
+
+# --- Dependency directories (reinstalled fresh in the deps stage) ---
+node_modules
+.pnpm-store
+
+# --- Development & test artifacts ---
+coverage
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__
+__mocks__
+
+# --- Documentation (not needed at runtime) ---
+README.md
+CLAUDE.md
+docs
+
+# --- Docker files themselves (no need to nest Docker-in-Docker) ---
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# --- OS artifacts ---
+.DS_Store
+Thumbs.db
+
+# --- Misc ---
+*.log
+npm-debug.log*
+pnpm-debug.log*
+.turbo

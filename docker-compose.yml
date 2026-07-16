@@ -1,0 +1,89 @@
+# =============================================================================
+# Meeting Intelligence — Docker Compose
+# =============================================================================
+# Two usage modes:
+#
+#   1. Default (Anthropic / OpenAI provider — no Ollama):
+#        docker compose up
+#
+#   2. Local AI with Ollama:
+#        docker compose --profile ollama up
+#
+# Prerequisites: copy .env.local.example → .env.local and fill in values.
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Next.js Application
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Pass public env vars so Next.js can bake them in at build time.
+      # Secret keys (SERVICE_ROLE, API keys) are injected at runtime below.
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}
+    image: meeting-intelligence:latest
+    container_name: meeting-intelligence-app
+    restart: unless-stopped
+    ports:
+      - '${PORT:-3000}:3000'
+    # Load all runtime secrets from .env.local — never commit this file.
+    env_file:
+      - .env.local
+    environment:
+      NODE_ENV: production
+      # Inside the container, "localhost" is the container itself — NOT the host.
+      # The app reaches the Ollama *container* over the compose network via its
+      # service name. This is only consumed when AI_PROVIDER=ollama (the
+      # `--profile ollama` demo path). Set here (not in .env.local) so it always
+      # wins over env_file and never bleeds into the host `pnpm dev` loop, where
+      # the app should talk to the *native* Ollama on localhost:11434 instead.
+      OLLAMA_BASE_URL: http://ollama:11434
+    healthcheck:
+      # Verify the app is actually serving requests, not just "running".
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ---------------------------------------------------------------------------
+  # Ollama — Local AI inference (optional profile)
+  # Activate with: docker compose --profile ollama up
+  #
+  # Models are stored in a named volume so they survive container restarts.
+  # First run will be slow — Ollama pulls the model on first request.
+  # ---------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: meeting-intelligence-ollama
+    profiles:
+      - ollama
+    restart: unless-stopped
+    ports:
+      # Expose on localhost only — Ollama should not be publicly reachable.
+      - '127.0.0.1:11434:11434'
+    volumes:
+      # Persist downloaded models across container rebuilds.
+      - ollama_models:/root/.ollama
+      # Auto-pull entrypoint — downloads required models on first start only.
+      - ./scripts/ollama-entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ['/bin/sh', '/entrypoint.sh']
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:11434/api/tags || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      # Ollama takes a moment to initialize + pull models on first start.
+      start_period: 120s
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  # Ollama model storage — persists across `docker compose down` without -v.
+  ollama_models:
+    driver: local

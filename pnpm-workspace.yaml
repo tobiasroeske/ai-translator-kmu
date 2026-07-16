@@ -1,0 +1,12 @@
+# pnpm 11 requires explicit approval for packages that run build (postinstall)
+# scripts, otherwise `pnpm install` fails hard (strictDepBuilds defaults to true).
+#
+# NOTE: pnpm 11 REMOVED `onlyBuiltDependencies` (and neverBuiltDependencies,
+# ignoredBuiltDependencies, ...) and replaced them with `allowBuilds` — a MAP of
+# package -> boolean, not a list. The old key is silently ignored on install,
+# which is why `pnpm config get onlyBuiltDependencies` could show a value while
+# the build scripts were still skipped.
+allowBuilds:
+  sharp: true
+  msw: true
+  unrs-resolver: true

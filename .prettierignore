@@ -1,0 +1,23 @@
+# Dependencies (also ignored by Prettier's defaults, listed for clarity)
+node_modules
+
+# agents
+.agents
+
+# local tooling config (Claude Code)
+.claude
+
+# Lockfiles — never reformat, it causes churn and can break resolution
+pnpm-lock.yaml
+
+# Build output / generated artifacts
+.next
+out
+build
+coverage
+
+# Logs
+*.log
+
+# shadcn/ui — vendored/generated via CLI, not hand-maintained
+components/ui
