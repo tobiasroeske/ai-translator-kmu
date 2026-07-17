@@ -3,7 +3,7 @@
 # =============================================================================
 # Two usage modes:
 #
-#   1. Default (Anthropic / OpenAI provider — no Ollama):
+#   1. Default (Anthropic provider — no Ollama):
 #        docker compose up
 #
 #   2. Local AI with Ollama:

@@ -6,7 +6,7 @@
 # Models are stored in a named volume, so they only download once.
 # =============================================================================
 
-MODELS="qwen2.5:7b nomic-embed-text"
+MODELS="qwen2.5:7b"
 
 # Start Ollama in the background so we can issue pull commands against it
 ollama serve &
