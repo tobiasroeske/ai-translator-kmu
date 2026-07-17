@@ -1,5 +1,5 @@
 # =============================================================================
-# Meeting Intelligence — Docker Compose
+# KI Translator KMU — Docker Compose
 # =============================================================================
 # Two usage modes:
 #
@@ -25,8 +25,8 @@ services:
       args:
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}
-    image: meeting-intelligence:latest
-    container_name: meeting-intelligence-app
+    image: ki-translator-kmu:latest
+    container_name: ki-translator-kmu-app
     restart: unless-stopped
     ports:
       - '${PORT:-3000}:3000'
@@ -59,7 +59,7 @@ services:
   # ---------------------------------------------------------------------------
   ollama:
     image: ollama/ollama:latest
-    container_name: meeting-intelligence-ollama
+    container_name: ki-translator-kmu-ollama
     profiles:
       - ollama
     restart: unless-stopped

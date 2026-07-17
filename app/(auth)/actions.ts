@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
+import { confirmSignupSchema } from '@/app/(auth)/confirm-signup/schema';
 import { authSchema } from '@/app/(auth)/login/schema';
 import { createClient } from '@/lib/supabase/server';
 
@@ -89,6 +90,24 @@ export const signupAction = async (
   return {
     success: 'Registrierung erfolgreich! Bitte überprüfe deine E-Mails und bestätige dein Konto.',
   };
+};
+
+export const confirmSignupAction = async (formData: FormData): Promise<never> => {
+  const parsedData = confirmSignupSchema.safeParse(Object.fromEntries(formData.entries()));
+
+  if (!parsedData.success) {
+    redirect('/auth-code-error');
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.verifyOtp(parsedData.data);
+
+  if (error) {
+    redirect('/auth-code-error');
+  }
+
+  revalidatePath('/', 'layout');
+  redirect('/dashboard');
 };
 
 export const logout = async () => {

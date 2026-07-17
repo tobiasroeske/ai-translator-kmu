@@ -1,5 +1,5 @@
 # =============================================================================
-# CI — Meeting Intelligence
+# CI — KI Translator KMU
 # =============================================================================
 # Runs on every push to main and on every pull request. The `quality` job is
 # the merge gate (lint + format + types + build); the `docker` job proves the

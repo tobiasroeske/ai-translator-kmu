@@ -4,83 +4,144 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this project is
 
-A KI-gestützter Business-Übersetzer (AI-powered business text translator) built as the practical demonstrator for the university module DLBFMPGKIU01 ("Projekt: Generative KI im Unternehmenskontext"), Aufgabe 1. Users paste business text (emails, internal documents, notes) → the system auto-detects the source language → translates with streaming output → optionally adjusts tone or re-translates a commented segment.
+A KI-gestützter Business-Übersetzer (AI-powered business text translator) built as the practical demonstrator for the university module DLBFMPGKIU01 ("Projekt: Generative KI im Unternehmenskontext"), Aufgabe 1. Target flow: users paste business text (emails, internal documents, notes) → the system auto-detects the source language → translates with streaming output → optionally adjusts tone or re-translates a commented segment.
 
 **Fictional framing:** a start-up offering AI translation solutions to SMEs (KMU) in the DACH region, 20–250 employees, regular international business correspondence.
 
-**Goal:** Fulfill the Anforderungsliste (FA-01–FA-15, NFA-01–NFA-04) as a working, defensible demonstrator for a graded academic portfolio — not a toy app, but also intentionally scoped tighter than a commercial product.
+**Goal:** Fulfill the Anforderungsliste (FA-01–FA-15, NFA-01–NFA-04, full text in `docs/anforderungsdokument.md`) as a working, defensible demonstrator for a graded academic portfolio.
+
+**Scope boundary:** standalone project, general business communication only (emails, internal documents, notes). Meeting transcripts, live meeting translation, RAG chat, and action-item extraction are explicitly **Won't** (FA-13/14/15) — those live in a separate "Meeting Intelligence Tool" portfolio project. If a feature idea drifts toward "meeting," it belongs in that other repo, not here.
 
 ---
 
-## Scope boundary vs. Meeting Intelligence Tool
+## ⚠️ Current repo state vs. target architecture
 
-This project is **standalone** and covers **general business communication** (emails, internal documents, notes) only.
-**Out of scope by design** (see FA-13/FA-14, Won't-priority): meeting transcripts, live meeting translation, RAG chat, action-item extraction. Those live exclusively in the separate "Meeting Intelligence Tool" portfolio project. If a feature idea drifts toward "meeting," it belongs in that other repo, not here.
+**Read this before assuming any file matches the description below.** The repo was bootstrapped from a starter scaffold shared with the sibling "Meeting Intelligence Tool" project (single commit so far: "chore: initial setup"), and the scaffold's _functionality_ has **not yet been adapted** to this project (the naming/branding has — see below). Concretely, right now:
+
+- Naming/branding is already fixed: `package.json` name is `ki-translator-kmu`, Docker image/container names and the `app/layout.tsx`, `app/dashboard/layout.tsx`, `app/(auth)/layout.tsx` titles all say "KI Translator KMU", and `.env.local.example` / `.github/workflows/ci.yml` headers match. Don't reintroduce "Meeting Intelligence" anywhere.
+- The only AI route is `app/api/chat/route.ts` — a generic chat endpoint (`useChat` + `DefaultChatTransport`), not `/api/translate` or `/api/retranslate`.
+- `lib/provider/provider.ts` (note: `provider/`, not `ai/`) switches between `ollama` and `anthropic`, **not** `ollama` and `mistral` as the tech-stack table below (the target) specifies. `@ai-sdk/mistral` is not installed.
+- There is no `lib/ai/schema.ts`, no translation Zod schema, no `translations` table/migration, no PDF export route, no tone/segment-comment UI — none of FA-02/05/07/08/09/10/11 are implemented yet.
+- What **does** already work and is safe to build on: Supabase auth (email/password login + signup via Server Actions, session middleware, RLS-ready client setup), the `(auth)`/`dashboard` route group split, the shadcn/ui + Tailwind v4 setup, the lint/format/typecheck tooling, and the Docker/Ollama local-dev pipeline.
+
+Until this gap is closed, treat the **Tech Stack / Architecture / Folder Structure / Key Patterns / Database Schema** sections below as the _target_ to build toward, not a description of files that currently exist — except where explicitly marked "(current)". When implementing FA-01–FA-12, expect to: rename/repurpose `app/api/chat` → `app/api/translate` + `app/api/retranslate`, replace `lib/provider/provider.ts`'s anthropic branch with a mistral branch (or add one), move it to `lib/ai/provider.ts` if you want to match the target layout, add `lib/ai/schema.ts`, and add the `translations` table via a Supabase migration.
 
 ---
 
 ## Tech Stack
 
-| Layer               | Technology                      | Version               |
-| -------------------- | -------------------------------- | ---------------------- |
-| Framework            | Next.js (App Router)             | 16                     |
-| Language             | TypeScript                       | strict mode            |
-| Styling              | Tailwind CSS                     | v4                     |
-| UI Components        | shadcn/ui                        | radix-vega style       |
-| AI Abstraction        | Vercel AI SDK                     | latest                 |
-| AI Provider (dev)     | Ollama via `ollama-ai-provider`   | qwen2.5:7b              |
-| AI Provider (prod)    | Mistral Small 4                   | via `@ai-sdk/mistral`  |
-| Database + Auth       | Supabase                          | PostgreSQL (no pgvector needed — no RAG in this project) |
-| Deployment            | Vercel                            | —                       |
-| Package Manager       | pnpm                              | —                       |
+| Layer              | Technology                                                                                 | Version                                           |
+| ------------------ | ------------------------------------------------------------------------------------------ | ------------------------------------------------- |
+| Framework          | Next.js (App Router)                                                                       | 16.2.6                                            |
+| Language           | TypeScript                                                                                 | strict mode                                       |
+| Styling            | Tailwind CSS                                                                               | v4                                                |
+| UI Components      | shadcn/ui                                                                                  | radix-ui based                                    |
+| AI Abstraction     | Vercel AI SDK                                                                              | `ai` ^6                                           |
+| AI Provider (dev)  | Ollama via `ai-sdk-ollama`                                                                 | qwen2.5:7b                                        |
+| AI Provider (prod) | **Target:** Mistral Small 4 via `@ai-sdk/mistral` — **current:** Anthropic (not yet wired) | —                                                 |
+| Database + Auth    | Supabase                                                                                   | PostgreSQL (no pgvector — no RAG in this project) |
+| Deployment         | Vercel                                                                                     | —                                                 |
+| Package Manager    | pnpm                                                                                       | 11.5.0 (pinned in `packageManager`)               |
+| Node               | pinned via `.nvmrc`                                                                        | 24                                                |
 
-> **Warum Mistral Small 4 in Produktion?** EU-Datenresidenz + günstigste verifizierte Preise (Stand Juli 2026, direkt bei Mistral verifiziert). Begründung im Vergleich zu OpenAI/DeepL API/Anthropic gehört in die Phase-2-Dokumentation (Komponentenauswahl).
+> **Warum Mistral Small 4 in Produktion?** EU-Datenresidenz + günstigste verifizierte Preise (Stand 10.07.2026, direkt bei Mistral verifiziert, siehe `docs/anforderungsdokument.md` Kostenschätzung). Begründung im Vergleich zu OpenAI/DeepL API/Anthropic gehört in die Phase-2-Dokumentation.
 
 ---
 
 ## Commands
 
 ```bash
-pnpm dev      # start dev server on localhost:3000
-pnpm build    # production build
-pnpm lint     # run ESLint
+pnpm dev              # start dev server on localhost:3000 (Turbopack)
+pnpm build            # production build
+pnpm start            # run the production build
+pnpm lint             # ESLint
+pnpm format           # Prettier --write
+pnpm format:check     # Prettier --check
+pnpm typecheck        # tsc --noEmit
+pnpm ci:test          # lint + format:check + typecheck — run before every commit
+
+# Docker (see docker-compose.yml)
+pnpm docker:build     # build the app image
+pnpm docker:up        # app + containerized Ollama (--profile ollama)
+pnpm docker:up:prod   # app only, expects AI_PROVIDER=anthropic/mistral + API key
+pnpm docker:down
+pnpm docker:restart   # docker:up with --build
+pnpm docker:logs
+pnpm docker:ps
 ```
 
-No test suite is configured yet.
+No test suite is configured yet — there is no `pnpm test`. `pnpm ci:test` is the closest thing to a gate and should be run before committing.
 
 ---
 
-## Folder Structure
+## Folder Structure (current)
 
-**Important:** There is no `src/` directory. The `@/*` alias maps to the project root.
+**Important:** There is no `src/` directory. The `@/*` alias maps to the project root. Relative imports (`./`, `../`) are **ESLint errors** — always use `@/*`.
 
 ```
 app/
 ├── (auth)/
-│   └── login/            → Sign-in / Sign-up page
-├── dashboard/             → Protected, requires auth — translation input + history
+│   ├── actions.ts          → Server Actions: loginAction, signupAction, logout
+│   ├── login/
+│   │   ├── page.tsx        → login + signup tabs (shadcn Tabs)
+│   │   └── schema.ts       → Zod schema for email/password validation
+│   └── auth-code-error/    → shown when the OAuth/email-confirm callback fails
+├── dashboard/               → protected (see proxy.ts), currently a chat demo
+│   ├── layout.tsx
+│   ├── page.tsx
+│   └── chat.tsx             → useChat + chatTransport, "use client"
 ├── api/
-│   ├── translate/         → POST: streamText, detects source lang, translates
-│   ├── retranslate/       → POST: re-translate a single segment with a comment/instruction (FA-07)
-│   └── export/            → POST: render translation as PDF (FA-11)
-└── layout.tsx
-components/                → Reusable UI (shadcn components go here)
+│   ├── chat/route.ts        → POST: streamText via getModel(), generic chat (NOT translation)
+│   ├── auth/callback/route.ts → GET: exchanges OAuth/email-confirm code for a session
+│   ├── health/route.ts      → GET: liveness check for Docker healthcheck
+│   └── ai-smoke-test/route.ts → GET: generateText "Pong" smoke test against the active provider
+└── layout.tsx                → root layout, Inter font, "KI Translator KMU" metadata
+components/
+├── logoutButton.tsx
+└── ui/                       → shadcn-generated, excluded from ESLint (globalIgnores)
 lib/
 ├── supabase/
-│   ├── client.ts          → Browser-side Supabase client
-│   ├── server.ts          → Server-side Supabase client (Route Handlers)
-│   └── middleware.ts      → updateSession helper (imported by root middleware.ts)
-└── ai/
-    ├── provider.ts        → Provider switch: Ollama (dev) / Mistral Small 4 (prod)
-    └── schema.ts          → Zod schema for translation response (incl. detected source language)
-middleware.ts               → Root middleware — imports updateSession from lib/supabase/middleware.ts
+│   ├── client.ts             → browser-side Supabase client
+│   ├── server.ts              → server-side Supabase client (Route Handlers, Server Components)
+│   └── middleware.ts          → updateSession(), called from proxy.ts
+├── provider/
+│   └── provider.ts            → getModel(): AI_PROVIDER switch (ollama | anthropic)
+├── ai/
+│   └── chat-transport.ts      → DefaultChatTransport wrapping fetch to surface 401 as AUTH_ERROR
+└── utils.ts                   → cn() (clsx + tailwind-merge)
+proxy.ts                       → Next.js middleware entry, delegates to updateSession(), route matcher excludes health/smoke-test/static assets
+docs/
+└── anforderungsdokument.md    → full FA/NFA Anforderungsliste (German), source of truth for requirements
+.agents/skills/                → vendored Supabase skill docs (auth/RLS/Postgres best practices)
 ```
 
 ---
 
 ## Architecture & Data Flow
 
-### Translation Flow
+### Auth flow (current, working)
+
+```
+proxy.ts (Next.js middleware) → lib/supabase/middleware.ts updateSession()
+→ supabase.auth.getClaims() checks session
+→ unauthenticated + page route → redirect to /login
+→ unauthenticated + /api/* route → 401 JSON (not an HTML redirect — chat UI needs a fetch-friendly error)
+→ public routes exempt from the check: /login, /auth*, /api/auth (the callback that ISSUES the session)
+```
+
+Login/signup go through Server Actions (`app/(auth)/actions.ts`), not client-side Supabase calls. Signup redirects straight to `/dashboard` only if email confirmation is disabled in the Supabase project (i.e. `data.session` is already set); otherwise the user sees a "check your email" message.
+
+### Chat flow (current — stand-in for the translation flow)
+
+```
+Chat.tsx (dashboard) → useChat({ transport: chatTransport })
+→ POST /api/chat → convertToModelMessages → streamText(getModel(), messages)
+→ toUIMessageStreamResponse() → streamed back to the client
+```
+
+`chatTransport` (lib/ai/chat-transport.ts) wraps `fetch` specifically to turn a 401 from the middleware into a thrown `AUTH_ERROR`, since `useChat` doesn't otherwise surface HTTP status on its own.
+
+### Translation flow (target — not yet built, FA-01/02/03)
 
 ```
 User pastes business text, selects target language (+ optional tone, FA-08)
@@ -92,7 +153,7 @@ User pastes business text, selects target language (+ optional tone, FA-08)
 → Result saved to Supabase (FA-09, history)
 ```
 
-### Segment Comment / Re-translation Flow (FA-07)
+### Segment Comment / Re-translation flow (target — FA-07, not yet built)
 
 ```
 User adds a comment to a segment (e.g. terminology hint, style note)
@@ -102,33 +163,39 @@ User adds a comment to a segment (e.g. terminology hint, style note)
 → Frontend updates just that segment
 ```
 
-No embeddings, chunking, or similarity search anywhere in this project — there is no RAG requirement in the Anforderungsliste.
+No embeddings, chunking, or similarity search anywhere in this project — there is no RAG requirement in the Anforderungsliste, and pgvector is intentionally not part of the stack.
 
 ---
 
 ## Key Patterns & Conventions
 
-### AI Provider Switch
+### AI Provider Switch (current shape; target adds a mistral branch)
 
 The active provider is controlled via `AI_PROVIDER` env var. Never hardcode a provider.
 
 ```ts
-// lib/ai/provider.ts
-import { createOllama } from 'ollama-ai-provider';
-import { mistral } from '@ai-sdk/mistral';
-
-export function getModel() {
-  if (process.env.AI_PROVIDER === 'ollama') {
-    return createOllama()('qwen2.5:7b');
+// lib/provider/provider.ts (current)
+export const getModel = () => {
+  const provider = process.env.AI_PROVIDER ?? 'ollama';
+  if (provider === 'ollama') {
+    const ollama = createOllama({
+      baseURL: process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434',
+    });
+    return ollama('qwen2.5:7b');
   }
-  return mistral('mistral-small-latest');
-}
+  if (provider === 'anthropic') {
+    throw new Error('Anthropic provider not implemented yet — set AI_PROVIDER=ollama');
+  }
+  throw new Error(`Unknown AI_PROVIDER: "${provider}"`);
+};
 ```
 
-### Translation Schema (Zod)
+Baked-in gotcha already documented in-code: `baseURL` belongs on the `createOllama()` factory call, not on the `ollama(model, settings)` call — there's no URL option there.
+
+### Translation Schema (Zod) — target, not yet created
 
 ```ts
-// lib/ai/schema.ts
+// lib/ai/schema.ts (does not exist yet)
 import { z } from 'zod';
 
 export const translationSchema = z.object({
@@ -138,19 +205,20 @@ export const translationSchema = z.object({
 });
 ```
 
-### Supabase Client Usage
+### Supabase Client Usage (current)
 
 - Use `@/lib/supabase/client.ts` in Client Components
-- Use `@/lib/supabase/server.ts` in Route Handlers and Server Components
+- Use `@/lib/supabase/server.ts` in Route Handlers and Server Components (creates a fresh client per call — do not cache/globalize it under Fluid compute)
 - Never use the service role key client-side
+- Env vars are `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — the **publishable** key, not the legacy anon key
 
-### Non-binding disclaimer (FA-10)
+### Non-binding disclaimer (target — FA-10, not yet built)
 
 Every translation output must display a notice that it is a machine translation without legal validity — this is a liability-reduction requirement, not optional UI copy.
 
 ---
 
-## Database Schema
+## Database Schema (target — no migrations exist yet)
 
 ```sql
 -- Translations table (history, FA-09)
@@ -169,32 +237,39 @@ create table translations (
 alter table translations enable row level security;
 ```
 
+There is currently no Supabase migrations directory in this repo — this schema has not been applied anywhere. Confirm with the user before creating new tables.
+
 ---
 
-## Environment Variables
+## Environment Variables (current)
+
+See `.env.local.example` for the authoritative current list. Copy it to `.env.local` (gitignored). Key points:
 
 ```bash
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=    # NOTE: this is the publishable key, NOT the anon key
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=    # the publishable key, NOT the anon key
 SUPABASE_SERVICE_ROLE_KEY=               # server-side only, never expose client-side
 
-# AI
-AI_PROVIDER=ollama               # 'ollama' | 'mistral'
-MISTRAL_API_KEY=                 # prod only
+# AI — controls lib/provider/provider.ts
+AI_PROVIDER=ollama               # 'ollama' | 'anthropic' (target: also 'mistral')
+ANTHROPIC_API_KEY=               # current prod path — target replaces/adds MISTRAL_API_KEY
+OLLAMA_BASE_URL=                 # leave commented out for local dev; docker-compose injects the container URL
 ```
+
+`AI_PROVIDER=ollama` pairs with `pnpm dev` (native Ollama) or `pnpm docker:up` (containerized Ollama, auto-pulls `qwen2.5:7b` + `nomic-embed-text` on first start via `scripts/ollama-entrypoint.sh`). A production provider pairs with `pnpm docker:up:prod`.
 
 ---
 
 ## Requirements Reference (MoSCoW Anforderungsliste)
 
-Full list lives in `docs/anforderungsliste.md` (also submitted as PDF for PebblePad Phase 1). Key must-haves already fixed and NOT to be casually changed without checking against this list first:
+Full list lives in `docs/anforderungsdokument.md` (German; also submitted as PDF for PebblePad Phase 1). Key must-haves already fixed and NOT to be casually changed without checking against this list first:
 
 - FA-01 Must: translate between ≥2 language pairs (DE↔EN)
 - FA-02 Must: auto-detect source language
 - FA-03 Must: streamed output
 - FA-04 Must: user authentication
-- FA-05 Must: visibly label AI-generated translations (EU AI Act Art. 50)
+- FA-05 Must: visibly label AI-generated translations (EU AI Act Art. 50, binding from 2026-08-02)
 - FA-06 Should: ≥4–5 languages offered
 - FA-07 Should: segment-level comment → re-translation
 - FA-08 Should: tone selection (formal/neutral/casual)
@@ -223,20 +298,25 @@ Full list lives in `docs/anforderungsliste.md` (also submitted as PDF for Pebble
 
 - Do not switch the AI provider without being asked — the `AI_PROVIDER` env var controls this intentionally
 - Do not add pgvector, embeddings, or RAG — out of scope for this project by design
-- Do not add meeting-specific features (transcripts, action items) — those belong to the other repo
+- Do not add meeting-specific features (transcripts, action items) — those belong to the other repo, even though the underlying scaffold originated from that project
 - Do not change the Zod schema or Anforderungsliste-driven feature set without checking against the FA/NFA list above
-- Do not add new Supabase tables without confirming the schema first
-- Do not use `any` types — this project uses strict TypeScript throughout
+- Do not add new Supabase tables/migrations without confirming the schema first
+- Do not use `any` types — enforced by `@typescript-eslint/no-explicit-any: error`
 - Do not install additional AI providers or SDKs unless explicitly asked
-- Do not remove the AI-generated label (FA-05) or the non-binding disclaimer (FA-10) — both are graded/compliance requirements, not cosmetic
+- Do not remove the AI-generated label (FA-05) or the non-binding disclaimer (FA-10) once built — both are graded/compliance requirements, not cosmetic
+- Do not reintroduce "Meeting Intelligence" naming (package name, Docker image/container names, layout metadata) — it was renamed to "ki-translator-kmu" / "KI Translator KMU"
 
 ---
 
 ## Coding Conventions
 
-- All components: functional, no class components
+- All components: functional, no class components; arrow-function style enforced (`func-style: expression`)
 - Server vs Client: prefer Server Components, add `"use client"` only when needed (interactivity, hooks)
 - Error handling: always handle loading + error states in UI
-- Imports: use `@/*` alias (maps to project root), never relative `../../`
+- Imports: use `@/*` alias only — relative `../` / `./` imports are an ESLint error (`no-restricted-imports`); import order is auto-sorted (`simple-import-sort`)
+- Types: `type` over `interface` (`@typescript-eslint/consistent-type-definitions`), inline type imports (`import { type Foo }`)
+- `console.log` is a lint warning; `console.warn`/`console.error` are allowed
+- Formatting is Prettier-owned (single quotes, semicolons, 100 col, ES5 trailing commas) — don't hand-format against it
+- `components/ui/**` (shadcn-generated) is excluded from ESLint — don't hand-edit its style to match the rest of the repo, treat it as vendored
 - Comments: explain _why_, not _what_ — especially around AI provider choice and EU AI Act compliance logic
 - Commits: gitmoji (e.g. `✨ add translate route`, `🐛 fix language detection`, `♻️ refactor provider switch`)
