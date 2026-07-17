@@ -257,7 +257,7 @@ ANTHROPIC_API_KEY=               # current prod path — target replaces/adds MI
 OLLAMA_BASE_URL=                 # leave commented out for local dev; docker-compose injects the container URL
 ```
 
-`AI_PROVIDER=ollama` pairs with `pnpm dev` (native Ollama) or `pnpm docker:up` (containerized Ollama, auto-pulls `qwen2.5:7b` + `nomic-embed-text` on first start via `scripts/ollama-entrypoint.sh`). A production provider pairs with `pnpm docker:up:prod`.
+`AI_PROVIDER=ollama` pairs with `pnpm dev` (native Ollama) or `pnpm docker:up` (containerized Ollama, auto-pulls `qwen2.5:7b` on first start via `scripts/ollama-entrypoint.sh`). A production provider pairs with `pnpm docker:up:prod`.
 
 ---
 

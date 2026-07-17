@@ -1,5 +1,5 @@
 # =============================================================================
-# .dockerignore — Meeting Intelligence
+# .dockerignore — KI Translator KMU
 # =============================================================================
 # Excludes files that should never enter the Docker build context.
 # A tight .dockerignore means faster builds (less data sent to the daemon)
