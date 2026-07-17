@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 
 import { loginAction, signupAction } from '@/app/(auth)/actions';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 export default function LoginPage() {
   const [loginState, loginFormAction, isLoginPending] = useActionState(loginAction, null);
   const [signupState, signupFormAction, isSignupPending] = useActionState(signupAction, null);
+
+  // Kontrolliert, weil React Formularfelder nach jedem Action-Aufruf (auch bei
+  // Fehlern) automatisch zurücksetzt — die E-Mail soll dem User dabei erhalten
+  // bleiben, damit er sie nicht bei jedem Tippfehler neu eingeben muss.
+  const [loginEmail, setLoginEmail] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
 
   return (
     <Tabs defaultValue="login">
@@ -27,7 +33,14 @@ export default function LoginPage() {
         <form action={loginFormAction} className="mt-4 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="login-email">E-Mail</Label>
-            <Input id="login-email" name="email" type="email" required />
+            <Input
+              id="login-email"
+              name="email"
+              type="email"
+              required
+              value={loginEmail}
+              onChange={(e) => setLoginEmail(e.target.value)}
+            />
             {loginState?.fieldErrors?.email?.map((err) => (
               <p key={err} className="text-sm text-destructive">
                 {err}
@@ -56,7 +69,14 @@ export default function LoginPage() {
         <form action={signupFormAction} className="mt-4 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="register-email">E-Mail</Label>
-            <Input id="register-email" name="email" type="email" required />
+            <Input
+              id="register-email"
+              name="email"
+              type="email"
+              required
+              value={signupEmail}
+              onChange={(e) => setSignupEmail(e.target.value)}
+            />
             {signupState?.fieldErrors?.email?.map((err) => (
               <p key={err} className="text-sm text-destructive">
                 {err}

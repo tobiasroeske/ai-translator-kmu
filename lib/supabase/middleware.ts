@@ -46,12 +46,15 @@ export const updateSession = async (request: NextRequest) => {
   // Routes that must stay reachable without a session:
   // - /login: the sign-in page itself
   // - /auth: error pages like /auth-code-error
-  // - /api/auth: the OAuth/email-confirm callback exchanges the code FOR the
-  //   session, so it runs while the user is still unauthenticated.
+  // - /api/auth: the OAuth callback exchanges the code FOR the session, so it
+  //   runs while the user is still unauthenticated.
+  // - /confirm-signup: the signup-confirmation click-through page + its
+  //   Server Action (verifyOtp) — also runs pre-session.
   const isPublicAuthRoute =
     pathname.startsWith('/login') ||
     pathname.startsWith('/auth') ||
-    pathname.startsWith('/api/auth');
+    pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/confirm-signup');
 
   if (!user && !isPublicAuthRoute) {
     // API routes get a machine-readable 401 instead of an HTML redirect, so a

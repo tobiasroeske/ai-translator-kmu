@@ -8,8 +8,8 @@ import { cn } from '@/lib/utils';
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: 'Meeting Intelligence',
-  description: 'AI-powered meeting transcript analysis',
+  title: 'KI Translator KMU',
+  description: 'AI-powered business text translator for SMEs',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

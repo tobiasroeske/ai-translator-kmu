@@ -1,13 +1,13 @@
 # =============================================================================
-# Meeting Intelligence — Production Dockerfile
+# KI Translator KMU — Production Dockerfile
 # =============================================================================
 # Multi-stage build keeps the final image lean (~150MB vs ~1GB+).
 # We use Next.js "standalone" output so the runner stage only needs the
 # minimal server bundle — no full node_modules at runtime.
 #
 # Usage:
-#   docker build -t meeting-intelligence .
-#   docker run -p 3000:3000 --env-file .env.local meeting-intelligence
+#   docker build -t ki-translator-kmu .
+#   docker run -p 3000:3000 --env-file .env.local ki-translator-kmu
 # =============================================================================
 
 # Pinning to a specific Node LTS patch version makes builds reproducible.

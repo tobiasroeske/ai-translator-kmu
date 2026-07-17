@@ -9,9 +9,9 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-3">
           <div className="flex items-center gap-2">
             <span className="flex size-7 items-center justify-center rounded-md bg-primary text-xs font-semibold text-primary-foreground">
-              MI
+              KI
             </span>
-            <span className="text-sm font-semibold">Meeting Intelligence</span>
+            <span className="text-sm font-semibold">KI Translator KMU</span>
           </div>
           <LogoutButton />
         </div>
