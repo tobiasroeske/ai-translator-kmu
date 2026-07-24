@@ -3,6 +3,7 @@
 import { useObject } from '@ai-sdk/react';
 import { useState } from 'react';
 
+import AiGeneratedBadge from '@/components/ai-generated-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -94,10 +95,7 @@ const Translate = () => {
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             <p className="text-sm whitespace-pre-wrap">{object?.translatedText}</p>
-            {object?.aiGenerated && (
-              // Platzhalter — wird in Punkt 10 durch <AiGeneratedBadge /> ersetzt
-              <span className="text-xs text-muted-foreground">⚠ KI-generierte Übersetzung</span>
-            )}
+            {object?.aiGenerated && <AiGeneratedBadge />}
           </CardContent>
         </Card>
       )}

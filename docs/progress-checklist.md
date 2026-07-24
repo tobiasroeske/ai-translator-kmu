@@ -19,7 +19,7 @@ Wird laufend aktualisiert — Referenz für den aktuellen Umsetzungsstand von FA
 - [x] `lib/ai/auth-fetch.ts`: `fetchWithAuthError` angelegt (ersetzt `lib/ai/chat-transport.ts`)
 - [x] `app/dashboard/page.tsx`: Chat-UI durch Übersetzer-UI ersetzt; `chat.tsx`/`chat-transport.ts`/`app/api/chat/route.ts` gelöscht
 - [x] Prompt geschärft (`system`/`prompt`-Trennung) — Ollama (qwen2.5:7b) neigte ohne explizite Negativ-Anweisungen zu Meta-Kommentaren/Zusatzübersetzungen im `translatedText`-Feld
-- [ ] FA-05: `components/ai-generated-badge.tsx` + Wortlaut final abgestimmt (aktuell nur Platzhalter-Text in `translate.tsx`)
+- [x] FA-05: `components/ai-generated-badge.tsx` angelegt und in `translate.tsx` eingebunden
 - [x] Cleanup: verbleibende Anthropic-Referenzen (README, `CLAUDE.md`, `docker-compose.yml`) — CI-Workflow hatte keine
 - [x] Abnahme: `pnpm ci:test` grün, manueller End-to-End-Test (Login → Übersetzung mit Sprach-Erkennung, auch mit langem Text getestet)
 
@@ -47,7 +47,7 @@ Wird laufend aktualisiert — Referenz für den aktuellen Umsetzungsstand von FA
 
 ## Offene Entscheidungen (bei Bedarf hier abhaken sobald final)
 
-- [ ] Wortlaut FA-05-Label final
+- [x] Wortlaut FA-05-Label final ("⚠ Diese Übersetzung wurde KI-generiert (kein menschliches Lektorat).")
 - [ ] Wortlaut FA-10-Disclaimer final
 - [x] Mistral-Model-Slug verifiziert (`mistral-small-latest`, via Vercel AI SDK Docs)
 - [ ] `MISTRAL_API_KEY` verfügbar und `AI_PROVIDER=mistral` getestet
