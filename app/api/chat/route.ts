@@ -1,6 +1,6 @@
 import { convertToModelMessages, streamText, type UIMessage } from 'ai';
 
-import { getModel } from '@/lib/provider/provider';
+import { getModel } from '@/lib/ai/provider';
 
 export const POST = async (req: Request) => {
   const { messages }: { messages: UIMessage[] } = await req.json();

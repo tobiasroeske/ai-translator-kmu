@@ -10,18 +10,18 @@ For the full requirements list (FA/NFA) that drives scope decisions, see [`docs/
 
 ## Tech Stack
 
-| Layer              | Technology                                       |
-| ------------------ | ------------------------------------------------ |
-| Framework          | Next.js 16 (App Router)                          |
-| Language           | TypeScript (strict)                              |
-| Styling            | Tailwind CSS v4 + shadcn/ui                      |
-| AI Abstraction     | Vercel AI SDK (`ai`)                             |
-| AI Provider (dev)  | Ollama (`qwen2.5:7b`) — local, no API costs      |
-| AI Provider (prod) | Anthropic (target: Mistral Small, see CLAUDE.md) |
-| Database + Auth    | Supabase (PostgreSQL)                            |
-| Deployment         | Vercel                                           |
-| Package Manager    | pnpm (pinned via `packageManager`)               |
-| Node               | pinned via `.nvmrc`                              |
+| Layer              | Technology                                            |
+| ------------------ | ----------------------------------------------------- |
+| Framework          | Next.js 16 (App Router)                               |
+| Language           | TypeScript (strict)                                   |
+| Styling            | Tailwind CSS v4 + shadcn/ui                           |
+| AI Abstraction     | Vercel AI SDK (`ai`)                                  |
+| AI Provider (dev)  | Ollama (`qwen2.5:7b`) — local, no API costs           |
+| AI Provider (prod) | Mistral Small (`mistral-small-latest`, see CLAUDE.md) |
+| Database + Auth    | Supabase (PostgreSQL)                                 |
+| Deployment         | Vercel                                                |
+| Package Manager    | pnpm (pinned via `packageManager`)                    |
+| Node               | pinned via `.nvmrc`                                   |
 
 ## Prerequisites
 
@@ -91,7 +91,7 @@ The Dockerfile is a multi-stage production build (Next.js `standalone` output) p
 ```bash
 pnpm docker:build     # build the app image
 pnpm docker:up        # app + containerized Ollama (local AI, zero setup)
-pnpm docker:up:prod   # app only — requires AI_PROVIDER=anthropic + ANTHROPIC_API_KEY in .env.local
+pnpm docker:up:prod   # app only — requires AI_PROVIDER=mistral + MISTRAL_API_KEY in .env.local
 pnpm docker:down
 pnpm docker:restart   # docker:up with --build
 pnpm docker:logs

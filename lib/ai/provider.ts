@@ -1,6 +1,8 @@
+import { createMistral } from '@ai-sdk/mistral';
 import { createOllama } from 'ai-sdk-ollama';
 
-const defaultModel = 'qwen2.5:7b';
+const DEFAULT_MODEL = 'qwen2.5:7b' as const;
+const DEFAULT_MISTRAL_MODEL = 'mistral-small-latest' as const;
 
 // baseURL gehört auf die Provider-Factory (createOllama), nicht auf den
 // Model-Aufruf ollama(model, settings) — dort gibt es keine URL-Option.
@@ -12,14 +14,15 @@ export const getModel = () => {
     const ollama = createOllama({
       baseURL: process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434',
     });
-    return ollama(defaultModel);
+    return ollama(DEFAULT_MODEL);
   }
 
-  // Bewusst ein lauter Fehler statt Fake-Stub: @ai-sdk/anthropic ist noch
-  // nicht installiert. Wird in Phase 3 (prod) verkabelt.
-  if (provider === 'anthropic') {
-    throw new Error('Anthropic provider not implemented yet — set AI_PROVIDER=ollama');
+  if (provider === 'mistral') {
+    const mistral = createMistral({
+      apiKey: process.env.MISTRAL_API_KEY,
+    });
+    return mistral(DEFAULT_MISTRAL_MODEL);
   }
 
-  throw new Error(`Unknown AI_PROVIDER: "${provider}" — expected 'ollama' or 'anthropic'`);
+  throw new Error(`Unknown AI_PROVIDER: "${provider}" — expected 'ollama' or 'mistral'`);
 };
