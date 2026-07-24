@@ -15,12 +15,13 @@ Wird laufend aktualisiert — Referenz für den aktuellen Umsetzungsstand von FA
 - [x] `lib/ai/schema.ts`: `translationSchema` angelegt
 - [x] `app/api/translate/route.ts`: `streamText` + `Output.object`-Route (ersetzt `app/api/chat/route.ts` später; `streamObject` ist in `ai` v6+ deprecated, siehe `CLAUDE.md`)
 - [x] shadcn-Komponenten ergänzt: `textarea`, `select`, `card`
-- [ ] `app/dashboard/translate.tsx`: `useObject`-UI (ersetzt `app/dashboard/chat.tsx`)
-- [x] `lib/ai/auth-fetch.ts`: `fetchWithAuthError` angelegt (ersetzt `lib/ai/chat-transport.ts` in Punkt 9, `chat.tsx` nutzt bis dahin noch die alte Datei)
-- [ ] `app/dashboard/page.tsx`: Chat-UI durch Übersetzer-UI ersetzt
-- [ ] FA-05: `components/ai-generated-badge.tsx` + Wortlaut final abgestimmt
+- [x] `app/dashboard/translate.tsx`: `useObject`-UI (ersetzt `app/dashboard/chat.tsx`)
+- [x] `lib/ai/auth-fetch.ts`: `fetchWithAuthError` angelegt (ersetzt `lib/ai/chat-transport.ts`)
+- [x] `app/dashboard/page.tsx`: Chat-UI durch Übersetzer-UI ersetzt; `chat.tsx`/`chat-transport.ts`/`app/api/chat/route.ts` gelöscht
+- [x] Prompt geschärft (`system`/`prompt`-Trennung) — Ollama (qwen2.5:7b) neigte ohne explizite Negativ-Anweisungen zu Meta-Kommentaren/Zusatzübersetzungen im `translatedText`-Feld
+- [ ] FA-05: `components/ai-generated-badge.tsx` + Wortlaut final abgestimmt (aktuell nur Platzhalter-Text in `translate.tsx`)
 - [x] Cleanup: verbleibende Anthropic-Referenzen (README, `CLAUDE.md`, `docker-compose.yml`) — CI-Workflow hatte keine
-- [ ] Abnahme: `pnpm ci:test` grün, manueller End-to-End-Test (Login → Übersetzung mit Sprach-Erkennung + Label)
+- [x] Abnahme: `pnpm ci:test` grün, manueller End-to-End-Test (Login → Übersetzung mit Sprach-Erkennung, auch mit langem Text getestet)
 
 ## Phase B — Soll-Kriterien (FA-06, FA-08, FA-10, FA-09, FA-07)
 
