@@ -25,7 +25,8 @@ Wird laufend aktualisiert — Referenz für den aktuellen Umsetzungsstand von FA
 
 ## Phase B — Soll-Kriterien (FA-06, FA-08, FA-10, FA-09, FA-07)
 
-- [ ] FA-06: `lib/ai/languages.ts` (DE/EN/FR/ES + optional PL), Select in `translate.tsx` erweitert
+- [x] FA-06: `lib/ai/languages.ts` (DE/EN/FR/PL), Select in `translate.tsx` datengetrieben erweitert
+- [x] Nebenbei: A11y-Verbesserungen (`Field`/`FieldLabel`/`FieldError`), stilles Fehlschlagen bei Provider-Ausfall behoben (`onFinish` + `onError`)
 - [ ] FA-08: `lib/ai/tone.ts`, Ton-Parameter in Route + UI
 - [ ] FA-10: `components/translation-disclaimer.tsx` + Wortlaut final abgestimmt
 - [ ] FA-09: `supabase init` + `supabase/config.toml`
