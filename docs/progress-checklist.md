@@ -16,7 +16,7 @@ Wird laufend aktualisiert — Referenz für den aktuellen Umsetzungsstand von FA
 - [x] `app/api/translate/route.ts`: `streamText` + `Output.object`-Route (ersetzt `app/api/chat/route.ts` später; `streamObject` ist in `ai` v6+ deprecated, siehe `CLAUDE.md`)
 - [x] shadcn-Komponenten ergänzt: `textarea`, `select`, `card`
 - [ ] `app/dashboard/translate.tsx`: `useObject`-UI (ersetzt `app/dashboard/chat.tsx`)
-- [ ] `lib/ai/auth-fetch.ts`: `fetchWithAuthError` (ersetzt `lib/ai/chat-transport.ts`)
+- [x] `lib/ai/auth-fetch.ts`: `fetchWithAuthError` angelegt (ersetzt `lib/ai/chat-transport.ts` in Punkt 9, `chat.tsx` nutzt bis dahin noch die alte Datei)
 - [ ] `app/dashboard/page.tsx`: Chat-UI durch Übersetzer-UI ersetzt
 - [ ] FA-05: `components/ai-generated-badge.tsx` + Wortlaut final abgestimmt
 - [x] Cleanup: verbleibende Anthropic-Referenzen (README, `CLAUDE.md`, `docker-compose.yml`) — CI-Workflow hatte keine
