@@ -12,8 +12,8 @@ Wird laufend aktualisiert — Referenz für den aktuellen Umsetzungsstand von FA
 - [x] `lib/ai/provider.ts`: Ollama-Zweig übernommen, `anthropic`-Stub entfernt, `mistral`-Zweig ergänzt; `lib/provider/` gelöscht
 - [x] `@ai-sdk/mistral` als Dependency ergänzt
 - [x] `.env.local.example`: `MISTRAL_API_KEY` ergänzt, `ANTHROPIC_API_KEY` entfernt, Kommentare aktualisiert
-- [ ] `lib/ai/schema.ts`: `translationSchema` angelegt
-- [ ] `app/api/translate/route.ts`: `streamObject`-Route (ersetzt `app/api/chat/route.ts`)
+- [x] `lib/ai/schema.ts`: `translationSchema` angelegt
+- [x] `app/api/translate/route.ts`: `streamText` + `Output.object`-Route (ersetzt `app/api/chat/route.ts` später; `streamObject` ist in `ai` v6+ deprecated, siehe `CLAUDE.md`)
 - [ ] shadcn-Komponenten ergänzt: `textarea`, `select`, `card`
 - [ ] `app/dashboard/translate.tsx`: `useObject`-UI (ersetzt `app/dashboard/chat.tsx`)
 - [ ] `lib/ai/auth-fetch.ts`: `fetchWithAuthError` (ersetzt `lib/ai/chat-transport.ts`)
