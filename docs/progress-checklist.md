@@ -14,7 +14,7 @@ Wird laufend aktualisiert — Referenz für den aktuellen Umsetzungsstand von FA
 - [x] `.env.local.example`: `MISTRAL_API_KEY` ergänzt, `ANTHROPIC_API_KEY` entfernt, Kommentare aktualisiert
 - [x] `lib/ai/schema.ts`: `translationSchema` angelegt
 - [x] `app/api/translate/route.ts`: `streamText` + `Output.object`-Route (ersetzt `app/api/chat/route.ts` später; `streamObject` ist in `ai` v6+ deprecated, siehe `CLAUDE.md`)
-- [ ] shadcn-Komponenten ergänzt: `textarea`, `select`, `card`
+- [x] shadcn-Komponenten ergänzt: `textarea`, `select`, `card`
 - [ ] `app/dashboard/translate.tsx`: `useObject`-UI (ersetzt `app/dashboard/chat.tsx`)
 - [ ] `lib/ai/auth-fetch.ts`: `fetchWithAuthError` (ersetzt `lib/ai/chat-transport.ts`)
 - [ ] `app/dashboard/page.tsx`: Chat-UI durch Übersetzer-UI ersetzt
