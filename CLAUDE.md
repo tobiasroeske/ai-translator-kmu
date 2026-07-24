@@ -14,35 +14,47 @@ A KI-gestützter Business-Übersetzer (AI-powered business text translator) buil
 
 ---
 
+## Arbeitsweise mit Claude Code (Mentor-Modus)
+
+Der Nutzer will bei diesem Projekt gezielt lernen, nicht nur ein fertiges Ergebnis bekommen. Das gilt für alle Feature-Implementierung (FA-01–FA-12), nicht für reine Projekt-/Tooling-Setup-Schritte:
+
+- **Schritt für Schritt.** Ein sinnvoll kleiner Teil-Task nach dem anderen (z. B. "ein Schema anlegen", "eine Route", "eine Komponente") — nicht ganze Phasen/Features am Stück durchimplementieren.
+- **Rollenverteilung "Erklären + Review":** Claude erklärt pro Schritt das Konzept und den Ansatz (z. B. wie `streamText`/`Output.object`/`useObject` zusammenspielen), zeigt bei Bedarf kurze Referenz-Snippets — der Nutzer schreibt den eigentlichen Code selbst. Claude reviewt danach und gibt Feedback.
+- Claude baut **nicht** eigenständig ganze Dateien/Features durch, außer der Nutzer bittet explizit darum (z. B. weil ein Teil repetitiv ist und er lieber zum nächsten Lernpunkt springen will).
+- **Laufende Checkliste** in `docs/progress-checklist.md` — nach jedem abgeschlossenen Schritt aktualisieren, damit jederzeit sichtbar ist, was erledigt ist und was als Nächstes ansteht.
+
+---
+
 ## ⚠️ Current repo state vs. target architecture
 
 **Read this before assuming any file matches the description below.** The repo was bootstrapped from a starter scaffold shared with the sibling "Meeting Intelligence Tool" project (single commit so far: "chore: initial setup"), and the scaffold's _functionality_ has **not yet been adapted** to this project (the naming/branding has — see below). Concretely, right now:
 
 - Naming/branding is already fixed: `package.json` name is `ki-translator-kmu`, Docker image/container names and the `app/layout.tsx`, `app/dashboard/layout.tsx`, `app/(auth)/layout.tsx` titles all say "KI Translator KMU", and `.env.local.example` / `.github/workflows/ci.yml` headers match. Don't reintroduce "Meeting Intelligence" anywhere.
-- The only AI route is `app/api/chat/route.ts` — a generic chat endpoint (`useChat` + `DefaultChatTransport`), not `/api/translate` or `/api/retranslate`.
-- `lib/provider/provider.ts` (note: `provider/`, not `ai/`) switches between `ollama` and `anthropic`, **not** `ollama` and `mistral` as the tech-stack table below (the target) specifies. `@ai-sdk/mistral` is not installed.
+- `app/api/translate/route.ts` now exists (`streamText` + `Output.object({ schema: translationSchema })`, see `lib/ai/schema.ts`) alongside the still-present `app/api/chat/route.ts` generic chat endpoint (`useChat` + `DefaultChatTransport`) — the chat route will be deleted once `translate.tsx` replaces the dashboard chat UI. `/api/retranslate` (FA-07) doesn't exist yet.
+- `lib/ai/provider.ts` (moved from `lib/provider/provider.ts`) now switches between `ollama` and `mistral` via `AI_PROVIDER`, matching the tech-stack table below.
+- **`generateObject`/`streamObject` are deprecated as of `ai` v6+** (we're on v7) — use `streamText`/`generateText` with `output: Output.object({ schema })` instead. `app/api/translate/route.ts` is the reference implementation.
 - There is no `lib/ai/schema.ts`, no translation Zod schema, no `translations` table/migration, no PDF export route, no tone/segment-comment UI — none of FA-02/05/07/08/09/10/11 are implemented yet.
 - What **does** already work and is safe to build on: Supabase auth (email/password login + signup via Server Actions, session middleware, RLS-ready client setup), the `(auth)`/`dashboard` route group split, the shadcn/ui + Tailwind v4 setup, the lint/format/typecheck tooling, and the Docker/Ollama local-dev pipeline.
 
-Until this gap is closed, treat the **Tech Stack / Architecture / Folder Structure / Key Patterns / Database Schema** sections below as the _target_ to build toward, not a description of files that currently exist — except where explicitly marked "(current)". When implementing FA-01–FA-12, expect to: rename/repurpose `app/api/chat` → `app/api/translate` + `app/api/retranslate`, replace `lib/provider/provider.ts`'s anthropic branch with a mistral branch (or add one), move it to `lib/ai/provider.ts` if you want to match the target layout, add `lib/ai/schema.ts`, and add the `translations` table via a Supabase migration.
+Until this gap is closed, treat the **Tech Stack / Architecture / Folder Structure / Key Patterns / Database Schema** sections below as the _target_ to build toward, not a description of files that currently exist — except where explicitly marked "(current)". When implementing FA-01–FA-12, expect to: rename/repurpose `app/api/chat` → `app/api/translate` + `app/api/retranslate`, add `lib/ai/schema.ts`, and add the `translations` table via a Supabase migration.
 
 ---
 
 ## Tech Stack
 
-| Layer              | Technology                                                                                 | Version                                           |
-| ------------------ | ------------------------------------------------------------------------------------------ | ------------------------------------------------- |
-| Framework          | Next.js (App Router)                                                                       | 16.2.6                                            |
-| Language           | TypeScript                                                                                 | strict mode                                       |
-| Styling            | Tailwind CSS                                                                               | v4                                                |
-| UI Components      | shadcn/ui                                                                                  | radix-ui based                                    |
-| AI Abstraction     | Vercel AI SDK                                                                              | `ai` ^6                                           |
-| AI Provider (dev)  | Ollama via `ai-sdk-ollama`                                                                 | qwen2.5:7b                                        |
-| AI Provider (prod) | **Target:** Mistral Small 4 via `@ai-sdk/mistral` — **current:** Anthropic (not yet wired) | —                                                 |
-| Database + Auth    | Supabase                                                                                   | PostgreSQL (no pgvector — no RAG in this project) |
-| Deployment         | Vercel                                                                                     | —                                                 |
-| Package Manager    | pnpm                                                                                       | 11.5.0 (pinned in `packageManager`)               |
-| Node               | pinned via `.nvmrc`                                                                        | 24                                                |
+| Layer              | Technology                          | Version                                                                |
+| ------------------ | ----------------------------------- | ---------------------------------------------------------------------- |
+| Framework          | Next.js (App Router)                | 16.2.6                                                                 |
+| Language           | TypeScript                          | strict mode                                                            |
+| Styling            | Tailwind CSS                        | v4                                                                     |
+| UI Components      | shadcn/ui                           | radix-ui based                                                         |
+| AI Abstraction     | Vercel AI SDK                       | `ai` ^7 (bumped from ^6 to align provider spec with `@ai-sdk/mistral`) |
+| AI Provider (dev)  | Ollama via `ai-sdk-ollama`          | qwen2.5:7b                                                             |
+| AI Provider (prod) | Mistral Small via `@ai-sdk/mistral` | `mistral-small-latest`                                                 |
+| Database + Auth    | Supabase                            | PostgreSQL (no pgvector — no RAG in this project)                      |
+| Deployment         | Vercel                              | —                                                                      |
+| Package Manager    | pnpm                                | 11.5.0 (pinned in `packageManager`)                                    |
+| Node               | pinned via `.nvmrc`                 | 24                                                                     |
 
 > **Warum Mistral Small 4 in Produktion?** EU-Datenresidenz + günstigste verifizierte Preise (Stand 10.07.2026, direkt bei Mistral verifiziert, siehe `docs/anforderungsdokument.md` Kostenschätzung). Begründung im Vergleich zu OpenAI/DeepL API/Anthropic gehört in die Phase-2-Dokumentation.
 
@@ -63,7 +75,7 @@ pnpm ci:test          # lint + format:check + typecheck — run before every com
 # Docker (see docker-compose.yml)
 pnpm docker:build     # build the app image
 pnpm docker:up        # app + containerized Ollama (--profile ollama)
-pnpm docker:up:prod   # app only, expects AI_PROVIDER=anthropic/mistral + API key
+pnpm docker:up:prod   # app only, expects AI_PROVIDER=mistral + API key
 pnpm docker:down
 pnpm docker:restart   # docker:up with --build
 pnpm docker:logs
@@ -104,9 +116,8 @@ lib/
 │   ├── client.ts             → browser-side Supabase client
 │   ├── server.ts              → server-side Supabase client (Route Handlers, Server Components)
 │   └── middleware.ts          → updateSession(), called from proxy.ts
-├── provider/
-│   └── provider.ts            → getModel(): AI_PROVIDER switch (ollama | anthropic)
 ├── ai/
+│   ├── provider.ts            → getModel(): AI_PROVIDER switch (ollama | mistral)
 │   └── chat-transport.ts      → DefaultChatTransport wrapping fetch to surface 401 as AUTH_ERROR
 └── utils.ts                   → cn() (clsx + tailwind-merge)
 proxy.ts                       → Next.js middleware entry, delegates to updateSession(), route matcher excludes health/smoke-test/static assets
@@ -169,12 +180,12 @@ No embeddings, chunking, or similarity search anywhere in this project — there
 
 ## Key Patterns & Conventions
 
-### AI Provider Switch (current shape; target adds a mistral branch)
+### AI Provider Switch (current)
 
 The active provider is controlled via `AI_PROVIDER` env var. Never hardcode a provider.
 
 ```ts
-// lib/provider/provider.ts (current)
+// lib/ai/provider.ts (current)
 export const getModel = () => {
   const provider = process.env.AI_PROVIDER ?? 'ollama';
   if (provider === 'ollama') {
@@ -183,25 +194,28 @@ export const getModel = () => {
     });
     return ollama('qwen2.5:7b');
   }
-  if (provider === 'anthropic') {
-    throw new Error('Anthropic provider not implemented yet — set AI_PROVIDER=ollama');
+  if (provider === 'mistral') {
+    const mistral = createMistral({
+      apiKey: process.env.MISTRAL_API_KEY,
+    });
+    return mistral('mistral-small-latest');
   }
-  throw new Error(`Unknown AI_PROVIDER: "${provider}"`);
+  throw new Error(`Unknown AI_PROVIDER: "${provider}" — expected 'ollama' or 'mistral'`);
 };
 ```
 
 Baked-in gotcha already documented in-code: `baseURL` belongs on the `createOllama()` factory call, not on the `ollama(model, settings)` call — there's no URL option there.
 
-### Translation Schema (Zod) — target, not yet created
+### Translation Schema (Zod) — current
 
 ```ts
-// lib/ai/schema.ts (does not exist yet)
+// lib/ai/schema.ts
 import { z } from 'zod';
 
 export const translationSchema = z.object({
-  detectedSourceLanguage: z.string(),
-  translatedText: z.string(),
-  aiGenerated: z.literal(true), // always surfaced in UI per FA-05
+  detectedSourceLanguage: z.string().describe('The language of the source text'),
+  translatedText: z.string().describe('The translated text'),
+  aiGenerated: z.literal(true).describe('Whether the translation was generated by AI'),
 });
 ```
 
@@ -251,9 +265,9 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=    # the publishable key, NOT the anon key
 SUPABASE_SERVICE_ROLE_KEY=               # server-side only, never expose client-side
 
-# AI — controls lib/provider/provider.ts
-AI_PROVIDER=ollama               # 'ollama' | 'anthropic' (target: also 'mistral')
-ANTHROPIC_API_KEY=               # current prod path — target replaces/adds MISTRAL_API_KEY
+# AI — controls lib/ai/provider.ts
+AI_PROVIDER=ollama               # 'ollama' | 'mistral'
+MISTRAL_API_KEY=                 # required when AI_PROVIDER=mistral
 OLLAMA_BASE_URL=                 # leave commented out for local dev; docker-compose injects the container URL
 ```
 

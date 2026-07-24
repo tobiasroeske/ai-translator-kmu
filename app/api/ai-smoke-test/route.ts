@@ -1,6 +1,6 @@
 import { generateText } from 'ai';
 
-import { getModel } from '@/lib/provider/provider';
+import { getModel } from '@/lib/ai/provider';
 
 export const GET = async () => {
   try {
