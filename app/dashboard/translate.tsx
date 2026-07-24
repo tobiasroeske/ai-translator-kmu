@@ -6,6 +6,7 @@ import { useState } from 'react';
 import AiGeneratedBadge from '@/components/ai-generated-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
@@ -15,15 +16,18 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { AUTH_ERROR, fetchWithAuthError } from '@/lib/ai/auth-fetch';
+import { languages } from '@/lib/ai/languages';
 import { translationSchema } from '@/lib/ai/schema';
 
 const Translate = () => {
   const [sourceText, setSourceText] = useState('');
+  const [streamFailed, setStreamFailed] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState('en');
   const { object, submit, isLoading, error } = useObject({
     api: '/api/translate',
     schema: translationSchema,
     fetch: fetchWithAuthError,
+    onFinish: ({ error }) => setStreamFailed(Boolean(error)),
   });
 
   const canSubmit = sourceText.trim().length > 0 && !isLoading;
@@ -36,49 +40,61 @@ const Translate = () => {
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <CardHeader>
-          <CardTitle>Text übersetzen</CardTitle>
-        </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <Textarea
-            value={sourceText}
-            onChange={(e) => setSourceText(e.currentTarget.value)}
-            placeholder="Text zum Übersetzen einfügen…"
-            disabled={isLoading}
-            rows={8}
-          />
+          <Field>
+            <FieldLabel htmlFor="sourceText">Text zum Übersetzen einfügen</FieldLabel>
+            <Textarea
+              id="sourceText"
+              value={sourceText}
+              onChange={(e) => setSourceText(e.currentTarget.value)}
+              placeholder="Zu übersetzender Text ..."
+              disabled={isLoading}
+              rows={8}
+            />
+          </Field>
 
           <div className="flex items-center gap-2">
-            <Select value={targetLanguage} onValueChange={setTargetLanguage} disabled={isLoading}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="en">Englisch</SelectItem>
-                <SelectItem value="de">Deutsch</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button onClick={handleSubmit} disabled={!canSubmit}>
+            <Field className="md:max-w-56 max-w-full">
+              <FieldLabel htmlFor="targetLanguage">Sprache auswählen</FieldLabel>
+              <Select value={targetLanguage} onValueChange={setTargetLanguage} disabled={isLoading}>
+                <SelectTrigger id="targetLanguage">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {languages.map(({ code, label }) => (
+                    <SelectItem key={code} value={code}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Button onClick={handleSubmit} disabled={!canSubmit} className="self-end">
               {isLoading ? 'Übersetze…' : 'Übersetzen'}
             </Button>
           </div>
         </CardContent>
       </Card>
 
+      {streamFailed && !isLoading && (
+        <FieldError className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+          Die Übersetzung ist fehlgeschlagen. Läuft Ollama?
+        </FieldError>
+      )}
+
       {error &&
         (error.message.includes(AUTH_ERROR) ? (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+          <FieldError className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
             Deine Sitzung ist abgelaufen.{' '}
             <a href="/login" className="font-medium underline">
               Bitte neu einloggen
             </a>
             .
-          </div>
+          </FieldError>
         ) : (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+          <FieldError className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
             Etwas ist schiefgelaufen. Läuft Ollama? ({error.message})
-          </div>
+          </FieldError>
         ))}
 
       {(isLoading || object?.translatedText) && (

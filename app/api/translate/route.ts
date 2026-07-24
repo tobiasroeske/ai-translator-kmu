@@ -15,6 +15,7 @@ export const POST = async (req: Request) => {
       'Output ONLY the translation itself — no explanations, no comments, no alternate translations, ' +
       'no additional languages, no meta-commentary of any kind.',
     prompt: `Detect the source language and translate the following text to ${targetLanguage}.\n\nText:\n${sourceText}`,
+    onError: ({ error }) => console.error(error),
   });
   return createTextStreamResponse({
     stream: toTextStream(result),
