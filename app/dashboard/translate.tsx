@@ -15,19 +15,30 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import UnsupportedLanguageDialog from '@/components/unsupported-language-dialog';
 import { AUTH_ERROR, fetchWithAuthError } from '@/lib/ai/auth-fetch';
-import { languages } from '@/lib/ai/languages';
+import { languages, toLanguageName } from '@/lib/ai/languages';
 import { translationSchema } from '@/lib/ai/schema';
+
+const parseUnsupportedLanguage = (error: Error | undefined): string | null => {
+  if (!error) return null;
+  try {
+    const body = JSON.parse(error.message) as { detectedSourceLanguage?: unknown };
+    return typeof body.detectedSourceLanguage === 'string' ? body.detectedSourceLanguage : null;
+  } catch {
+    return null;
+  }
+};
 
 const Translate = () => {
   const [sourceText, setSourceText] = useState('');
   const [streamFailed, setStreamFailed] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState('en');
-  const { object, submit, isLoading, error } = useObject({
+  const { object, submit, isLoading, error, clear } = useObject({
     api: '/api/translate',
     schema: translationSchema,
     fetch: fetchWithAuthError,
-    onFinish: ({ error }) => setStreamFailed(Boolean(error)),
+    onFinish: ({ error }) => setStreamFailed(!!error),
   });
 
   const canSubmit = sourceText.trim().length > 0 && !isLoading;
@@ -36,6 +47,8 @@ const Translate = () => {
     if (!canSubmit) return;
     submit({ sourceText, targetLanguage });
   };
+
+  const unsupportedLanguage = parseUnsupportedLanguage(error);
 
   return (
     <div className="flex flex-col gap-4">
@@ -83,6 +96,7 @@ const Translate = () => {
       )}
 
       {error &&
+        !unsupportedLanguage &&
         (error.message.includes(AUTH_ERROR) ? (
           <FieldError className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
             Deine Sitzung ist abgelaufen.{' '}
@@ -97,14 +111,22 @@ const Translate = () => {
           </FieldError>
         ))}
 
-      {(isLoading || object?.translatedText) && (
+      <UnsupportedLanguageDialog
+        open={unsupportedLanguage !== null}
+        detectedLanguage={unsupportedLanguage ?? undefined}
+        onOpenChange={(open) => {
+          if (!open) clear();
+        }}
+      />
+
+      {!unsupportedLanguage && (isLoading || object?.translatedText) && (
         <Card>
           <CardHeader>
             <CardTitle>
               Übersetzung
               {object?.detectedSourceLanguage && (
                 <span className="ml-2 text-sm font-normal text-muted-foreground">
-                  (erkannt: {object.detectedSourceLanguage})
+                  (erkannt: {toLanguageName(object.detectedSourceLanguage)})
                 </span>
               )}
             </CardTitle>

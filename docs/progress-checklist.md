@@ -27,6 +27,8 @@ Wird laufend aktualisiert — Referenz für den aktuellen Umsetzungsstand von FA
 
 - [x] FA-06: `lib/ai/languages.ts` (DE/EN/FR/PL), Select in `translate.tsx` datengetrieben erweitert
 - [x] Nebenbei: A11y-Verbesserungen (`Field`/`FieldLabel`/`FieldError`), stilles Fehlschlagen bei Provider-Ausfall behoben (`onFinish` + `onError`)
+- [x] FA-02 (nachgeschärft, nach Feedback zu Phase 1): Erkennung auf den FA-06-Sprachkatalog begrenzt. Zweistufig: `lib/ai/detect-language.ts` erkennt (schneller, nicht-gestreamter Call), erst bei Katalog-Treffer (`isSupportedLanguageCode()`) startet der Übersetzungs-Call. Bei Nicht-Treffer: `422` von der Route, `translate.tsx` liest den Fehlertext zurück und öffnet `UnsupportedLanguageDialog` — es wird gar nicht erst übersetzt. Einzelner Enum-/Prompt-Call wurde gemessen und verworfen (qwen2.5:7b: IT-Langtext → `de`, PT → `fr`); Begründung + Messwerte in `CLAUDE.md`
+- [x] Nebenbei: `temperature: 0.2` in der Translate-Route — Provider-Default (~0.8) führte zu Ausgaben in völlig fremden Sprachen
 - [ ] FA-08: `lib/ai/tone.ts`, Ton-Parameter in Route + UI
 - [ ] FA-10: `components/translation-disclaimer.tsx` + Wortlaut final abgestimmt
 - [ ] FA-09: `supabase init` + `supabase/config.toml`
