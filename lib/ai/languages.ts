@@ -1,5 +1,9 @@
+export const languageCodes = ['de', 'en', 'fr', 'es'] as const;
+
+export type LanguageCode = (typeof languageCodes)[number];
+
 export type Language = {
-  code: string;
+  code: LanguageCode;
   label: string;
 };
 
@@ -9,3 +13,20 @@ export const languages: Language[] = [
   { code: 'fr', label: 'Französisch' },
   { code: 'es', label: 'Spanisch' },
 ] as const satisfies Language[];
+
+export const supportedLanguageLabels = languages.map(({ label }) => label).join(', ');
+
+// FA-02: catalog membership is decided here, not by the model — a small model can name a
+// language reliably but is not reliable at also deciding set membership (see CLAUDE.md).
+export const isSupportedLanguageCode = (code: string | undefined): code is LanguageCode =>
+  languageCodes.includes(code as LanguageCode);
+
+// Resolves a bare ISO 639-1 code to a German language name for display. `of()` throws on
+// unknown/malformed codes; falling back to the raw code beats showing nothing.
+export const toLanguageName = (code: string) => {
+  try {
+    return new Intl.DisplayNames(['de'], { type: 'language' }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+};

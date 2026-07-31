@@ -79,9 +79,9 @@ export const signupAction = async (
     return { error: error.message };
   }
 
-  // data.session ist nur gesetzt wenn "Enable email confirmations" in Supabase deaktiviert ist.
-  // In dem Fall ist der User sofort eingeloggt → direkt zu Dashboard.
-  // Mit aktivierter Bestätigung ist session null → User muss erst die E-Mail bestätigen.
+  // data.session is only set when "Enable email confirmations" is disabled in Supabase —
+  // in that case the user is signed in immediately. With confirmations enabled, session is
+  // null and the user has to confirm their email first.
   if (data.session) {
     revalidatePath('/', 'layout');
     redirect('/dashboard');

@@ -4,9 +4,9 @@ import { createOllama } from 'ai-sdk-ollama';
 const DEFAULT_MODEL = 'qwen2.5:7b' as const;
 const DEFAULT_MISTRAL_MODEL = 'mistral-small-latest' as const;
 
-// baseURL gehört auf die Provider-Factory (createOllama), nicht auf den
-// Model-Aufruf ollama(model, settings) — dort gibt es keine URL-Option.
-// Maps intern auf Config.host des ollama-js Clients.
+// baseURL belongs on the provider factory (createOllama), not on the
+// model call ollama(model, settings) — there is no URL option there.
+// Maps internally to the ollama-js client's Config.host.
 export const getModel = () => {
   const provider = process.env.AI_PROVIDER ?? 'ollama';
 

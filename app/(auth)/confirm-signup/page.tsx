@@ -20,10 +20,9 @@ const ConfirmSignupPage = async ({ searchParams }: ConfirmSignupPageProps) => {
       <p className="text-sm text-muted-foreground">
         Klicke auf den Button, um deine Registrierung abzuschließen.
       </p>
-      {/* Bewusst ein manueller Klick (POST) statt eines automatischen GET-Redirects:
-          Apple Mail Privacy Protection ruft Links in Mails automatisch im Hintergrund
-          auf, was den einmal gültigen token_hash sonst schon vor dem echten Klick
-          verbraucht. */}
+      {/* Deliberately a manual click (POST) instead of an automatic GET redirect: Apple
+          Mail Privacy Protection follows links in emails automatically in the background,
+          which would consume the one-time token_hash before the user actually clicks. */}
       <form action={confirmSignupAction}>
         <input type="hidden" name="token_hash" value={tokenHash} />
         <input type="hidden" name="type" value={type} />

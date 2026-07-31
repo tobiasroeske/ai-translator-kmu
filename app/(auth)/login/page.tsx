@@ -12,9 +12,8 @@ export default function LoginPage() {
   const [loginState, loginFormAction, isLoginPending] = useActionState(loginAction, null);
   const [signupState, signupFormAction, isSignupPending] = useActionState(signupAction, null);
 
-  // Kontrolliert, weil React Formularfelder nach jedem Action-Aufruf (auch bei
-  // Fehlern) automatisch zurücksetzt — die E-Mail soll dem User dabei erhalten
-  // bleiben, damit er sie nicht bei jedem Tippfehler neu eingeben muss.
+  // Controlled because React resets form fields after every action call (including on
+  // error) — keeping the email around saves the user from retyping it on each mistake.
   const [loginEmail, setLoginEmail] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
 
