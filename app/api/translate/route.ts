@@ -4,16 +4,23 @@ import { detectLanguage } from '@/lib/ai/detect-language';
 import { isSupportedLanguageCode } from '@/lib/ai/languages';
 import { getModel } from '@/lib/ai/provider';
 import { translationSchema } from '@/lib/ai/schema';
-import { type Tone, toneInstructions } from '@/lib/ai/tone';
+import { isSupportedTone, toneInstructions } from '@/lib/ai/tone';
 
 type RequestBody = {
   sourceText: string;
   targetLanguage: string;
-  tone: Tone;
+  tone: string;
 };
 
 export const POST = async (req: Request) => {
   const { sourceText, targetLanguage, tone }: RequestBody = await req.json();
+
+  // tone is UI-controlled (EnumSelect only ever sends a valid value) — an invalid value here
+  // means a malformed request, not a case the user can trigger through normal use. Guarding it
+  // avoids toneInstructions[tone] silently resolving to undefined and corrupting the prompt.
+  if (!isSupportedTone(tone)) {
+    return Response.json({ error: 'Invalid tone' }, { status: 400 });
+  }
 
   const detectedSourceLanguage = await detectLanguage(sourceText);
 

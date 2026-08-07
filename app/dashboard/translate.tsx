@@ -5,27 +5,26 @@ import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 
 import AiGeneratedBadge from '@/components/ai-generated-badge';
+import EnumSelect, { type EnumSelectOption } from '@/components/enum-select';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import UnsupportedLanguageDialog from '@/components/unsupported-language-dialog';
 import { AUTH_ERROR, fetchWithAuthError } from '@/lib/ai/auth-fetch';
-import {
-  isSupportedLanguageCode,
-  type LanguageCode,
-  languages,
-  toLanguageName,
-} from '@/lib/ai/languages';
+import { type LanguageCode, languages, toLanguageName } from '@/lib/ai/languages';
 import { translationSchema } from '@/lib/ai/schema';
-import { isSupportedTone, type Tone, toneLabels, tones } from '@/lib/ai/tone';
+import { type Tone, toneLabels, tones } from '@/lib/ai/tone';
+
+const languageOptions: EnumSelectOption<LanguageCode>[] = languages.map(({ code, label }) => ({
+  value: code,
+  label,
+}));
+
+const toneOptions: EnumSelectOption<Tone>[] = tones.map((tone) => ({
+  value: tone,
+  label: toneLabels[tone],
+}));
 
 const parseUnsupportedLanguage = (error: Error | undefined): string | null => {
   if (!error) return null;
@@ -75,53 +74,25 @@ const Translate = () => {
           </Field>
 
           <div className="flex items-center gap-2">
-            <Field className="md:max-w-56 max-w-full">
-              <FieldLabel htmlFor="targetLanguage">Sprache auswählen</FieldLabel>
-              <Select
-                value={targetLanguage}
-                onValueChange={(val) => {
-                  if (isSupportedLanguageCode(val)) {
-                    setTargetLanguage(val);
-                  }
-                }}
-                disabled={isLoading}
-              >
-                <SelectTrigger id="targetLanguage">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {languages.map(({ code, label }) => (
-                    <SelectItem key={code} value={code}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+            <EnumSelect
+              id="targetLanguage"
+              label="Sprache auswählen"
+              value={targetLanguage}
+              onValueChange={setTargetLanguage}
+              options={languageOptions}
+              disabled={isLoading}
+              className="md:max-w-56 max-w-full"
+            />
 
-            <Field className="md:max-w-56 max-w-full">
-              <FieldLabel htmlFor="tone">Ton auswählen</FieldLabel>
-              <Select
-                value={tone}
-                onValueChange={(val) => {
-                  if (isSupportedTone(val)) {
-                    setTone(val);
-                  }
-                }}
-                disabled={isLoading}
-              >
-                <SelectTrigger id="tone">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {tones.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {toneLabels[t]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+            <EnumSelect
+              id="tone"
+              label="Ton auswählen"
+              value={tone}
+              onValueChange={setTone}
+              options={toneOptions}
+              disabled={isLoading}
+              className="md:max-w-56 max-w-full"
+            />
             <Button onClick={handleSubmit} disabled={!canSubmit} className="self-end">
               {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
               {isLoading ? 'Übersetze…' : 'Übersetzen'}
