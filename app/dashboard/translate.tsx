@@ -2,14 +2,15 @@
 
 import { useObject } from '@ai-sdk/react';
 import { Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 import AiGeneratedBadge from '@/components/ai-generated-badge';
 import EnumSelect, { type EnumSelectOption } from '@/components/enum-select';
 import TranslationDisclaimer from '@/components/translation-disclaimer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Field, FieldError, FieldLabel } from '@/components/ui/field';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
 import UnsupportedLanguageDialog from '@/components/unsupported-language-dialog';
 import { AUTH_ERROR, fetchWithAuthError } from '@/lib/ai/auth-fetch';
@@ -27,14 +28,28 @@ const toneOptions: EnumSelectOption<Tone>[] = tones.map((tone) => ({
   label: toneLabels[tone],
 }));
 
-const parseUnsupportedLanguage = (error: Error | undefined): string | null => {
+type TranslateError =
+  | { kind: 'unsupported-language'; detectedSourceLanguage: string }
+  | { kind: 'auth' }
+  | { kind: 'generic' };
+
+// useObject puts the raw response body into error.message, which is only JSON for the errors the
+// route returns deliberately — anything else (an HTML error page, a network failure) lands here
+// too. Classifying it in one place keeps that raw text out of the UI; the route logs the cause.
+const parseTranslateError = (error: Error | undefined): TranslateError | null => {
   if (!error) return null;
+  if (error.message.includes(AUTH_ERROR)) return { kind: 'auth' };
+
   try {
     const body = JSON.parse(error.message) as { detectedSourceLanguage?: unknown };
-    return typeof body.detectedSourceLanguage === 'string' ? body.detectedSourceLanguage : null;
+    if (typeof body.detectedSourceLanguage === 'string') {
+      return { kind: 'unsupported-language', detectedSourceLanguage: body.detectedSourceLanguage };
+    }
   } catch {
-    return null;
+    // Body isn't JSON — nothing to extract, fall through to the generic case.
   }
+
+  return { kind: 'generic' };
 };
 
 const Translate = () => {
@@ -56,7 +71,39 @@ const Translate = () => {
     submit({ sourceText, targetLanguage, tone });
   };
 
-  const unsupportedLanguage = parseUnsupportedLanguage(error);
+  const translateError = parseTranslateError(error);
+  const unsupportedLanguage =
+    translateError?.kind === 'unsupported-language' ? translateError.detectedSourceLanguage : null;
+
+  useEffect(() => {
+    if (streamFailed && !isLoading) {
+      toast.error('Die Übersetzung war unvollständig. Bitte versuche es erneut.');
+    }
+  }, [streamFailed, isLoading]);
+
+  // Depends on `error` rather than the parsed result: parseTranslateError returns a new object on
+  // every render, which would re-fire the toast on each one.
+  useEffect(() => {
+    const parsed = parseTranslateError(error);
+    if (!parsed || parsed.kind === 'unsupported-language') return;
+
+    if (parsed.kind === 'auth') {
+      // Stays until dismissed: nothing works until the user acts on it, and an auto-dismissing
+      // toast would take the login link with it.
+      toast.error('Deine Sitzung ist abgelaufen.', {
+        duration: Infinity,
+        action: {
+          label: 'Neu einloggen',
+          onClick: () => {
+            window.location.href = '/login';
+          },
+        },
+      });
+      return;
+    }
+
+    toast.error('Die Übersetzung ist fehlgeschlagen. Läuft Ollama?');
+  }, [error]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -101,28 +148,6 @@ const Translate = () => {
           </div>
         </CardContent>
       </Card>
-
-      {streamFailed && !isLoading && (
-        <FieldError className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
-          Die Übersetzung ist fehlgeschlagen. Läuft Ollama?
-        </FieldError>
-      )}
-
-      {error &&
-        !unsupportedLanguage &&
-        (error.message.includes(AUTH_ERROR) ? (
-          <FieldError className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
-            Deine Sitzung ist abgelaufen.{' '}
-            <a href="/login" className="font-medium underline">
-              Bitte neu einloggen
-            </a>
-            .
-          </FieldError>
-        ) : (
-          <FieldError className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
-            Etwas ist schiefgelaufen. Läuft Ollama? ({error.message})
-          </FieldError>
-        ))}
 
       <UnsupportedLanguageDialog
         open={unsupportedLanguage !== null}

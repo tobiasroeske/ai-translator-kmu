@@ -35,7 +35,9 @@ Wird laufend aktualisiert — Referenz für den aktuellen Umsetzungsstand von FA
 - [x] FA-10: `components/translation-disclaimer.tsx` angelegt, neben `AiGeneratedBadge` in `translate.tsx` eingebunden (nur sichtbar sobald `aiGenerated` gesetzt ist)
 - [x] FA-09: `supabase` als lokale devDependency, `supabase init` + `supabase/config.toml`
 - [x] FA-09: Migration `supabase/migrations/20260807094319_create_translations.sql` (Tabelle: `user_id`/`source_language` `not null`, `created_at timestamptz`; Index auf `(user_id, created_at desc)`; RLS mit separaten select/insert/delete-Policies über `auth.uid() = user_id`, kein update — siehe FA-07). Per `supabase link` + `supabase db push` gegen die Remote-Instanz angewendet (kein lokales Docker-Supabase nötig — NFA-01 bezieht sich nur auf den AI-Provider)
-- [ ] FA-09: `onFinish`-Callback in `app/api/translate/route.ts` schreibt Übersetzung in DB
+- [x] FA-09: `onFinish`-Callback in `app/api/translate/route.ts` schreibt Übersetzung in DB. Generierte DB-Typen (`supabase gen types` → `lib/supabase/database.types.ts`), beide Supabase-Clients auf `<Database>` typisiert — falscher Tabellen-/Spaltenname oder fehlende Pflichtspalte sind damit Compile-Fehler statt Laufzeitfehler
+- [x] Nachtrag-Migration `20260807103907_grant_translations_privileges.sql`: `grant select, insert, delete ... to authenticated`. GRANT (Tabellenebene) und RLS (Zeilenebene) sind in Postgres getrennte Schichten — ohne GRANT scheitert jeder Insert mit `42501`, bevor überhaupt eine Policy ausgewertet wird
+- [x] Fehlerbehandlung vereinheitlicht: Toasts (`sonner`) statt inline `FieldError`-Boxen, `parseTranslateError` klassifiziert den Response-Body einmal zentral (`unsupported-language` | `auth` | `generic`), roher `error.message` erreicht die UI nicht mehr. `detectLanguage()` in der Route gekapselt → sauberes JSON mit `502` statt HTML-500 bei nicht erreichbarem Provider
 - [ ] FA-09: `app/dashboard/history/page.tsx` (Historie-Liste)
 - [ ] FA-09: Nav-Link "Verlauf" in `app/dashboard/layout.tsx`
 - [ ] FA-07: Segmentierung (Absatzgrenzen) + `retranslateSchema`
