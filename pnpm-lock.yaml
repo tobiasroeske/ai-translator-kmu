@@ -87,6 +87,9 @@ importers:
       prettier:
         specifier: ^3.8.3
         version: 3.8.3
+      supabase:
+        specifier: ^2.111.0
+        version: 2.111.0
       tailwindcss:
         specifier: ^4
         version: 4.3.0
@@ -1390,6 +1393,50 @@ packages:
     resolution: {integrity: sha512-VcAjUErkHkhC5Jaf+g/G1qbkQrFh8edaCdHa7pxJmHUjkWKjT7UnYCtPA89XV0N0GIYRkEqJZw5V62CtOxTmBQ==}
     engines: {node: '>=20.0.0'}
 
+  '@supabase/cli-darwin-arm64@2.111.0':
+    resolution: {integrity: sha512-H1ucZ+9Z37Ha7uqYrKHfAy1vXWMVsN4gNlKaOpjKUYoHwDEbueEHVIDA1/PBIUd4HX+usJfpq+R+gWqzM/FKqQ==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@supabase/cli-darwin-x64@2.111.0':
+    resolution: {integrity: sha512-4iMYm/XaAZJ8YzdJ2HBRVc7i9SRIwE6VQrnSt968WTt83M1y6knC7UENCKjMtO+As4QeZkICpUk50CeathqxbA==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@supabase/cli-linux-arm64-musl@2.111.0':
+    resolution: {integrity: sha512-RnvbVlJ4TX/UIwLiglBVQ2eL4GAl9SfWZmM5LENXyIaohBcRZHDva5t2OyK+BPGBtngjVGpb3QyfLdvkt9yJcw==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@supabase/cli-linux-arm64@2.111.0':
+    resolution: {integrity: sha512-2KSHITFMXe2u5yALupBWHGeQ1IY4C8GkcIWPWgNFdtAPo03pgs1hLWgL1eeqSh/a0wB/6rgUlM1fQR/hAgCyCA==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@supabase/cli-linux-x64-musl@2.111.0':
+    resolution: {integrity: sha512-2QVpsy/3v+TzqE5GgTCPruoxTlF3d8QPGirjcnah8hP66nxXStB9yTvxmJq+LtO3gwMt1Kpm7is0roZVkV55Pw==}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@supabase/cli-linux-x64@2.111.0':
+    resolution: {integrity: sha512-NwwNhiZZT4WYEPDXAbgZL+l77z/hoJ+w5t+52WBN1VlmoxwDmf2NP+UERM8wuCGFe/tmBlUuFE1eJYZfab0/qA==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@supabase/cli-windows-arm64@2.111.0':
+    resolution: {integrity: sha512-twawKY5xfU2dNOnZrKDmrudxRG/XIKcBxOb6X2lMGJU3N1Hd+8oWpI9TwM5Qv+eXehtlsKDmUvbitStXvJr/xQ==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@supabase/cli-windows-x64@2.111.0':
+    resolution: {integrity: sha512-1F+X5tAYxAGx93ZZoIQBnIQ2Q2NnplKqjpigAS/zpTsNaWAjNi7EnxmuQKaEoAdqOHKbLhegVVDiw1+us3ZVpA==}
+    cpu: [x64]
+    os: [win32]
+
   '@supabase/functions-js@2.106.2':
     resolution: {integrity: sha512-oRnr0QrL8H+zTO1YyQ1QjiHZU/957jvubbxSJTUm2XLAgzoGGV9Tahfyd+uvLsBLRVmXLtpU3oyCjdQIvkGMOA==}
     engines: {node: '>=20.0.0'}
@@ -2131,6 +2178,10 @@ packages:
   eciesjs@0.4.18:
     resolution: {integrity: sha512-wG99Zcfcys9fZux7Cft8BAX/YrOJLJSZ3jyYPfhZHqN2E+Ffx+QXBDsv3gubEgPtV6dTzJMSQUwk1H98/t/0wQ==}
     engines: {bun: '>=1', deno: '>=2', node: '>=16'}
+
+  eciesjs@0.5.0:
+    resolution: {integrity: sha512-s0J9SEVYAEPg7J63GFMApLYzPH9VNIQIyC6s15JpnqVc0TqcKWdbgFlnAweEBRyMmko2dcs2sfC83Hj4J43tuA==}
+    engines: {bun: '>=1', deno: '>=2.7.10', node: '>=16'}
 
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
@@ -3647,6 +3698,10 @@ packages:
         optional: true
       babel-plugin-macros:
         optional: true
+
+  supabase@2.111.0:
+    resolution: {integrity: sha512-0cjCRdYNV1h2XXa0wm04mdct7QuDU7sMul/NwETRJmN3+HCsdEu6u5n0oygL97fdf6sDrGmnAdBh8E4wsv1ayg==}
+    hasBin: true
 
   supports-color@7.2.0:
     resolution: {integrity: sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==}
@@ -5283,6 +5338,30 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
+  '@supabase/cli-darwin-arm64@2.111.0':
+    optional: true
+
+  '@supabase/cli-darwin-x64@2.111.0':
+    optional: true
+
+  '@supabase/cli-linux-arm64-musl@2.111.0':
+    optional: true
+
+  '@supabase/cli-linux-arm64@2.111.0':
+    optional: true
+
+  '@supabase/cli-linux-x64-musl@2.111.0':
+    optional: true
+
+  '@supabase/cli-linux-x64@2.111.0':
+    optional: true
+
+  '@supabase/cli-windows-arm64@2.111.0':
+    optional: true
+
+  '@supabase/cli-windows-x64@2.111.0':
+    optional: true
+
   '@supabase/functions-js@2.106.2':
     dependencies:
       tslib: 2.8.1
@@ -5969,6 +6048,13 @@ snapshots:
       gopd: 1.2.0
 
   eciesjs@0.4.18:
+    dependencies:
+      '@ecies/ciphers': 0.2.6(@noble/ciphers@1.3.0)
+      '@noble/ciphers': 1.3.0
+      '@noble/curves': 1.9.7
+      '@noble/hashes': 1.8.0
+
+  eciesjs@0.5.0:
     dependencies:
       '@ecies/ciphers': 0.2.6(@noble/ciphers@1.3.0)
       '@noble/ciphers': 1.3.0
@@ -7773,6 +7859,20 @@ snapshots:
       react: 19.2.4
     optionalDependencies:
       '@babel/core': 7.29.7
+
+  supabase@2.111.0:
+    dependencies:
+      eciesjs: 0.5.0
+      jose: 6.2.3
+    optionalDependencies:
+      '@supabase/cli-darwin-arm64': 2.111.0
+      '@supabase/cli-darwin-x64': 2.111.0
+      '@supabase/cli-linux-arm64': 2.111.0
+      '@supabase/cli-linux-arm64-musl': 2.111.0
+      '@supabase/cli-linux-x64': 2.111.0
+      '@supabase/cli-linux-x64-musl': 2.111.0
+      '@supabase/cli-windows-arm64': 2.111.0
+      '@supabase/cli-windows-x64': 2.111.0
 
   supports-color@7.2.0:
     dependencies:

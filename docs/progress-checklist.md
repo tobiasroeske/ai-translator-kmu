@@ -33,8 +33,8 @@ Wird laufend aktualisiert — Referenz für den aktuellen Umsetzungsstand von FA
 - [x] Bug gefunden + behoben: `tone: 'informal'` brach die Übersetzung nach der Anrede ab (JSON-String wurde vorzeitig geschlossen). Ursache: die Ton-Instruktion zitierte Beispielphrasen (`"Hi,"` etc.) in Anführungszeichen — unter grammatikbeschränkter JSON-Ausgabe ist ein schließendes Anführungszeichen an jeder Stelle syntaktisch gültig, ein Beispiel, das dem gerade generierten Text ähnelt, zieht ein kleines Modell dazu, das Muster zu vervollständigen. Reproduziert (3/3) und Fix verifiziert (9/9, alle drei Töne) direkt gegen Ollama. Fix: Register wird jetzt beschrieben statt mit Zitaten bebildert, plus explizite Vollständigkeits-/Absatzstruktur-Anweisung in Prompt-Schritt 3
 - [x] Nebenbei: Loading-Spinner (`Loader2`, `lucide-react`) im Button + Card-Header, solange kein `translatedText` gestreamt wird
 - [x] FA-10: `components/translation-disclaimer.tsx` angelegt, neben `AiGeneratedBadge` in `translate.tsx` eingebunden (nur sichtbar sobald `aiGenerated` gesetzt ist)
-- [ ] FA-09: `supabase init` + `supabase/config.toml`
-- [ ] FA-09: Migration `supabase/migrations/<timestamp>_create_translations.sql` (Tabelle + RLS-Policies)
+- [x] FA-09: `supabase` als lokale devDependency, `supabase init` + `supabase/config.toml`
+- [x] FA-09: Migration `supabase/migrations/20260807094319_create_translations.sql` (Tabelle: `user_id`/`source_language` `not null`, `created_at timestamptz`; Index auf `(user_id, created_at desc)`; RLS mit separaten select/insert/delete-Policies über `auth.uid() = user_id`, kein update — siehe FA-07). Per `supabase link` + `supabase db push` gegen die Remote-Instanz angewendet (kein lokales Docker-Supabase nötig — NFA-01 bezieht sich nur auf den AI-Provider)
 - [ ] FA-09: `onFinish`-Callback in `app/api/translate/route.ts` schreibt Übersetzung in DB
 - [ ] FA-09: `app/dashboard/history/page.tsx` (Historie-Liste)
 - [ ] FA-09: Nav-Link "Verlauf" in `app/dashboard/layout.tsx`
