@@ -1,6 +1,7 @@
 'use client';
 
 import { useObject } from '@ai-sdk/react';
+import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 
 import AiGeneratedBadge from '@/components/ai-generated-badge';
@@ -17,8 +18,14 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import UnsupportedLanguageDialog from '@/components/unsupported-language-dialog';
 import { AUTH_ERROR, fetchWithAuthError } from '@/lib/ai/auth-fetch';
-import { languages, toLanguageName } from '@/lib/ai/languages';
+import {
+  isSupportedLanguageCode,
+  type LanguageCode,
+  languages,
+  toLanguageName,
+} from '@/lib/ai/languages';
 import { translationSchema } from '@/lib/ai/schema';
+import { isSupportedTone, type Tone, toneLabels, tones } from '@/lib/ai/tone';
 
 const parseUnsupportedLanguage = (error: Error | undefined): string | null => {
   if (!error) return null;
@@ -33,7 +40,8 @@ const parseUnsupportedLanguage = (error: Error | undefined): string | null => {
 const Translate = () => {
   const [sourceText, setSourceText] = useState('');
   const [streamFailed, setStreamFailed] = useState(false);
-  const [targetLanguage, setTargetLanguage] = useState('en');
+  const [targetLanguage, setTargetLanguage] = useState<LanguageCode>('en');
+  const [tone, setTone] = useState<Tone>('neutral');
   const { object, submit, isLoading, error, clear } = useObject({
     api: '/api/translate',
     schema: translationSchema,
@@ -45,7 +53,7 @@ const Translate = () => {
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    submit({ sourceText, targetLanguage });
+    submit({ sourceText, targetLanguage, tone });
   };
 
   const unsupportedLanguage = parseUnsupportedLanguage(error);
@@ -69,7 +77,15 @@ const Translate = () => {
           <div className="flex items-center gap-2">
             <Field className="md:max-w-56 max-w-full">
               <FieldLabel htmlFor="targetLanguage">Sprache auswählen</FieldLabel>
-              <Select value={targetLanguage} onValueChange={setTargetLanguage} disabled={isLoading}>
+              <Select
+                value={targetLanguage}
+                onValueChange={(val) => {
+                  if (isSupportedLanguageCode(val)) {
+                    setTargetLanguage(val);
+                  }
+                }}
+                disabled={isLoading}
+              >
                 <SelectTrigger id="targetLanguage">
                   <SelectValue />
                 </SelectTrigger>
@@ -82,7 +98,32 @@ const Translate = () => {
                 </SelectContent>
               </Select>
             </Field>
+
+            <Field className="md:max-w-56 max-w-full">
+              <FieldLabel htmlFor="tone">Ton auswählen</FieldLabel>
+              <Select
+                value={tone}
+                onValueChange={(val) => {
+                  if (isSupportedTone(val)) {
+                    setTone(val);
+                  }
+                }}
+                disabled={isLoading}
+              >
+                <SelectTrigger id="tone">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {tones.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {toneLabels[t]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
             <Button onClick={handleSubmit} disabled={!canSubmit} className="self-end">
+              {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
               {isLoading ? 'Übersetze…' : 'Übersetzen'}
             </Button>
           </div>
@@ -122,10 +163,13 @@ const Translate = () => {
       {!unsupportedLanguage && (isLoading || object?.translatedText) && (
         <Card>
           <CardHeader>
-            <CardTitle>
+            <CardTitle className="flex items-center gap-2">
               Übersetzung
+              {isLoading && !object?.translatedText && (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              )}
               {object?.detectedSourceLanguage && (
-                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                <span className="text-sm font-normal text-muted-foreground">
                   (erkannt: {toLanguageName(object.detectedSourceLanguage)})
                 </span>
               )}

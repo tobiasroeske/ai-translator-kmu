@@ -1,3 +1,5 @@
+import { createEnumGuard } from '@/lib/utils';
+
 export const languageCodes = ['de', 'en', 'fr', 'es'] as const;
 
 export type LanguageCode = (typeof languageCodes)[number];
@@ -18,8 +20,7 @@ export const supportedLanguageLabels = languages.map(({ label }) => label).join(
 
 // FA-02: catalog membership is decided here, not by the model — a small model can name a
 // language reliably but is not reliable at also deciding set membership (see CLAUDE.md).
-export const isSupportedLanguageCode = (code: string | undefined): code is LanguageCode =>
-  languageCodes.includes(code as LanguageCode);
+export const isSupportedLanguageCode = createEnumGuard(languageCodes);
 
 // Resolves a bare ISO 639-1 code to a German language name for display. `of()` throws on
 // unknown/malformed codes; falling back to the raw code beats showing nothing.
