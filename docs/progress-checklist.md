@@ -32,7 +32,7 @@ Wird laufend aktualisiert — Referenz für den aktuellen Umsetzungsstand von FA
 - [x] FA-08: `lib/ai/tone.ts` (formal/informal/neutral, Default neutral), Ton-Select in `translate.tsx`, Prompt-Schritt 2 in `app/api/translate/route.ts`. Type-Guards für die Selects (`createEnumGuard` in `lib/utils.ts`, generisch statt `as`-Cast pro Select) statt unsicherer Casts
 - [x] Bug gefunden + behoben: `tone: 'informal'` brach die Übersetzung nach der Anrede ab (JSON-String wurde vorzeitig geschlossen). Ursache: die Ton-Instruktion zitierte Beispielphrasen (`"Hi,"` etc.) in Anführungszeichen — unter grammatikbeschränkter JSON-Ausgabe ist ein schließendes Anführungszeichen an jeder Stelle syntaktisch gültig, ein Beispiel, das dem gerade generierten Text ähnelt, zieht ein kleines Modell dazu, das Muster zu vervollständigen. Reproduziert (3/3) und Fix verifiziert (9/9, alle drei Töne) direkt gegen Ollama. Fix: Register wird jetzt beschrieben statt mit Zitaten bebildert, plus explizite Vollständigkeits-/Absatzstruktur-Anweisung in Prompt-Schritt 3
 - [x] Nebenbei: Loading-Spinner (`Loader2`, `lucide-react`) im Button + Card-Header, solange kein `translatedText` gestreamt wird
-- [ ] FA-10: `components/translation-disclaimer.tsx` + Wortlaut final abgestimmt
+- [x] FA-10: `components/translation-disclaimer.tsx` angelegt, neben `AiGeneratedBadge` in `translate.tsx` eingebunden (nur sichtbar sobald `aiGenerated` gesetzt ist)
 - [ ] FA-09: `supabase init` + `supabase/config.toml`
 - [ ] FA-09: Migration `supabase/migrations/<timestamp>_create_translations.sql` (Tabelle + RLS-Policies)
 - [ ] FA-09: `onFinish`-Callback in `app/api/translate/route.ts` schreibt Übersetzung in DB
@@ -53,6 +53,6 @@ Wird laufend aktualisiert — Referenz für den aktuellen Umsetzungsstand von FA
 ## Offene Entscheidungen (bei Bedarf hier abhaken sobald final)
 
 - [x] Wortlaut FA-05-Label final ("⚠ Diese Übersetzung wurde KI-generiert (kein menschliches Lektorat).")
-- [ ] Wortlaut FA-10-Disclaimer final
+- [x] Wortlaut FA-10-Disclaimer final ("Diese Übersetzung wurde maschinell erstellt und ist unverbindlich. Für rechtsverbindliche Übersetzungen wenden Sie sich an eine vereidigte Übersetzerin/einen vereidigten Übersetzer.")
 - [x] Mistral-Model-Slug verifiziert (`mistral-small-latest`, via Vercel AI SDK Docs)
 - [ ] `MISTRAL_API_KEY` verfügbar und `AI_PROVIDER=mistral` getestet
