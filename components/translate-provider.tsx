@@ -1,12 +1,14 @@
 'use client';
 
 import { useObject } from '@ai-sdk/react';
-import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
+import { createContext, type ReactNode, useContext, useState } from 'react';
 import { toast } from 'sonner';
 
 import { AUTH_ERROR, fetchWithAuthError } from '@/lib/ai/auth-fetch';
 import { type LanguageCode } from '@/lib/ai/languages';
+import { MAX_SOURCE_TEXT_LENGTH } from '@/lib/ai/limits';
 import { translationSchema } from '@/lib/ai/schema';
+import { segmentText } from '@/lib/ai/segment';
 import { type Tone } from '@/lib/ai/tone';
 
 type TranslateError =
@@ -41,56 +43,78 @@ const TranslateContext = createContext<ReturnType<typeof useTranslateState> | nu
 
 const useTranslateState = () => {
   const [sourceText, setSourceText] = useState('');
-  const [streamFailed, setStreamFailed] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState<LanguageCode>('en');
   const [tone, setTone] = useState<Tone>('neutral');
-  const { object, submit, isLoading, error, clear } = useObject({
+
+  // Snapshots, not per-render derivations. `segments` has to outlive the raw translated text
+  // because FA-07 replaces individual paragraphs in it; `sourceSegments` is captured at submit
+  // time so it stays index-aligned with `segments` even if the source field is edited afterwards
+  // (a shifted index would send the wrong paragraph to /api/retranslate). Both live here rather
+  // than in translate.tsx so a retranslated paragraph survives navigating away and back.
+  const [segments, setSegments] = useState<string[]>([]);
+  const [sourceSegments, setSourceSegments] = useState<string[]>([]);
+
+  const { object, submit, isLoading, error, stop, clear } = useObject({
     api: '/api/translate',
     schema: translationSchema,
     fetch: fetchWithAuthError,
-    onFinish: ({ error }) => setStreamFailed(!!error),
+    // Fires once per completed stream, so reacting to a finished translation needs no effect and
+    // no "did I already handle this object?" bookkeeping.
+    onFinish: ({ object: translation, error }) => {
+      if (error || !translation) {
+        toast.error('Die Übersetzung war unvollständig. Bitte versuche es erneut.');
+        return;
+      }
+      setSegments(segmentText(translation.translatedText));
+    },
+    // Only reached when the request itself failed (useObject throws on a non-ok response before
+    // any streaming happens) — never in addition to onFinish.
+    onError: (error) => {
+      const parsed = parseTranslateError(error);
+      // Not a toast: the unsupported-language case is surfaced as a dialog, see `unsupportedLanguage`.
+      if (!parsed || parsed.kind === 'unsupported-language') return;
+
+      if (parsed.kind === 'auth') {
+        // Stays until dismissed: nothing works until the user acts on it, and an auto-dismissing
+        // toast would take the login link with it.
+        toast.error('Deine Sitzung ist abgelaufen.', {
+          duration: Infinity,
+          action: {
+            label: 'Neu einloggen',
+            onClick: () => {
+              window.location.href = '/login';
+            },
+          },
+        });
+        return;
+      }
+
+      toast.error('Die Übersetzung ist fehlgeschlagen. Läuft Ollama?');
+    },
   });
 
-  const canSubmit = sourceText.trim().length > 0 && !isLoading;
+  const isTooLong = sourceText.length > MAX_SOURCE_TEXT_LENGTH;
+  const canSubmit = sourceText.trim().length > 0 && !isTooLong && !isLoading;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
+    setSourceSegments(segmentText(sourceText));
     submit({ sourceText, targetLanguage, tone });
+  };
+
+  const retranslateSegment = (index: number, translatedText: string) => {
+    setSegments((prev) => prev.map((segment, i) => (i === index ? translatedText : segment)));
+  };
+
+  const reset = () => {
+    clear();
+    setSegments([]);
+    setSourceSegments([]);
   };
 
   const translateError = parseTranslateError(error);
   const unsupportedLanguage =
     translateError?.kind === 'unsupported-language' ? translateError.detectedSourceLanguage : null;
-
-  useEffect(() => {
-    if (streamFailed && !isLoading) {
-      toast.error('Die Übersetzung war unvollständig. Bitte versuche es erneut.');
-    }
-  }, [streamFailed, isLoading]);
-
-  // Depends on `error` rather than the parsed result: parseTranslateError returns a new object on
-  // every render, which would re-fire the toast on each one.
-  useEffect(() => {
-    const parsed = parseTranslateError(error);
-    if (!parsed || parsed.kind === 'unsupported-language') return;
-
-    if (parsed.kind === 'auth') {
-      // Stays until dismissed: nothing works until the user acts on it, and an auto-dismissing
-      // toast would take the login link with it.
-      toast.error('Deine Sitzung ist abgelaufen.', {
-        duration: Infinity,
-        action: {
-          label: 'Neu einloggen',
-          onClick: () => {
-            window.location.href = '/login';
-          },
-        },
-      });
-      return;
-    }
-
-    toast.error('Die Übersetzung ist fehlgeschlagen. Läuft Ollama?');
-  }, [error]);
 
   return {
     sourceText,
@@ -102,9 +126,14 @@ const useTranslateState = () => {
     object,
     isLoading,
     canSubmit,
+    isTooLong,
     handleSubmit,
     unsupportedLanguage,
-    clear,
+    stop,
+    segments,
+    sourceSegments,
+    retranslateSegment,
+    clear: reset,
   };
 };
 

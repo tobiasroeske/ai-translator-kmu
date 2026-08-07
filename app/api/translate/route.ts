@@ -2,6 +2,7 @@ import { createTextStreamResponse, Output, streamText, toTextStream } from 'ai';
 
 import { detectLanguage } from '@/lib/ai/detect-language';
 import { isSupportedLanguageCode } from '@/lib/ai/languages';
+import { MAX_SOURCE_TEXT_LENGTH } from '@/lib/ai/limits';
 import { getModel } from '@/lib/ai/provider';
 import { translationSchema } from '@/lib/ai/schema';
 import { isSupportedTone, toneInstructions } from '@/lib/ai/tone';
@@ -21,6 +22,12 @@ export const POST = async (req: Request) => {
   // avoids toneInstructions[tone] silently resolving to undefined and corrupting the prompt.
   if (!isSupportedTone(tone)) {
     return Response.json({ error: 'Invalid tone' }, { status: 400 });
+  }
+
+  // Backstop for the same limit the UI enforces before submitting — see lib/ai/limits.ts for why
+  // the two have to agree.
+  if (sourceText.length > MAX_SOURCE_TEXT_LENGTH) {
+    return Response.json({ error: 'Source text too long' }, { status: 400 });
   }
 
   // First call to the AI provider — an unreachable provider surfaces here. Without a catch, the
@@ -47,6 +54,12 @@ export const POST = async (req: Request) => {
     output: Output.object({ schema: translationSchema }),
     // Translation has one right answer, not many — keep sampling low for consistent output.
     temperature: 0.2,
+    // Hard backstop against a runaway generation (same reasoning as /api/retranslate). A
+    // translation stays in the ballpark of its source length, so ~4 chars per token doubled leaves
+    // room for languages that expand plus the surrounding JSON. A small model that starts
+    // repeating itself would otherwise stream until the context window runs out. No separate
+    // ceiling needed — the length check above already bounds this.
+    maxOutputTokens: Math.ceil(sourceText.length / 2) + 300,
     system:
       'You are a professional business translator.\n\n' +
       'Follow these steps in order:\n' +
