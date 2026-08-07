@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import AiGeneratedBadge from '@/components/ai-generated-badge';
 import EnumSelect, { type EnumSelectOption } from '@/components/enum-select';
+import TranslationDisclaimer from '@/components/translation-disclaimer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
@@ -148,7 +149,12 @@ const Translate = () => {
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             <p className="text-sm whitespace-pre-wrap">{object?.translatedText}</p>
-            {object?.aiGenerated && <AiGeneratedBadge />}
+            {object?.aiGenerated && (
+              <>
+                <AiGeneratedBadge />
+                <TranslationDisclaimer />
+              </>
+            )}
           </CardContent>
         </Card>
       )}
