@@ -38,8 +38,10 @@ Wird laufend aktualisiert — Referenz für den aktuellen Umsetzungsstand von FA
 - [x] FA-09: `onFinish`-Callback in `app/api/translate/route.ts` schreibt Übersetzung in DB. Generierte DB-Typen (`supabase gen types` → `lib/supabase/database.types.ts`), beide Supabase-Clients auf `<Database>` typisiert — falscher Tabellen-/Spaltenname oder fehlende Pflichtspalte sind damit Compile-Fehler statt Laufzeitfehler
 - [x] Nachtrag-Migration `20260807103907_grant_translations_privileges.sql`: `grant select, insert, delete ... to authenticated`. GRANT (Tabellenebene) und RLS (Zeilenebene) sind in Postgres getrennte Schichten — ohne GRANT scheitert jeder Insert mit `42501`, bevor überhaupt eine Policy ausgewertet wird
 - [x] Fehlerbehandlung vereinheitlicht: Toasts (`sonner`) statt inline `FieldError`-Boxen, `parseTranslateError` klassifiziert den Response-Body einmal zentral (`unsupported-language` | `auth` | `generic`), roher `error.message` erreicht die UI nicht mehr. `detectLanguage()` in der Route gekapselt → sauberes JSON mit `502` statt HTML-500 bei nicht erreichbarem Provider
-- [ ] FA-09: `app/dashboard/history/page.tsx` (Historie-Liste)
-- [ ] FA-09: Nav-Link "Verlauf" in `app/dashboard/layout.tsx`
+- [x] FA-09: `app/dashboard/history/page.tsx` (Server Component, liest direkt via Supabase, kein RLS-Filter im Code nötig — die select-Policy scopet bereits auf die Session). `TranslationDisclaimer` einmal für die Liste, `AiGeneratedBadge` pro Eintrag (FA-05 muss am Output selbst stehen, FA-10 qualifiziert die Seite)
+- [x] FA-09: Nav-Link "Verlauf" in `app/dashboard/layout.tsx` (`components/dashboard-nav.tsx`, aktiver Zustand via `usePathname`)
+- [x] Nebenbei: Zweispaltiges Layout in `translate.tsx` (Quelltext/Übersetzung nebeneinander statt untereinander), Dashboard-Container auf `max-w-6xl`
+- [x] Nebenbei: Übersetzungs-State (`useObject` + Formularfelder) aus `translate.tsx` in `components/translate-provider.tsx` gehoben (Next.js-Context-Provider-Pattern, Provider sitzt in `app/dashboard/layout.tsx` um `{children}`) — vorher unmountete `translate.tsx` beim Wechsel zu "Verlauf" und eine laufende Übersetzung ging verloren; jetzt übersteht der Stream die Navigation, weil der Context eine Ebene über dem gerouteten Content liegt
 - [ ] FA-07: Segmentierung (Absatzgrenzen) + `retranslateSchema`
 - [ ] FA-07: `app/api/retranslate/route.ts`
 - [ ] FA-07: Segment-Kommentar-UI in `translate.tsx`
