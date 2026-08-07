@@ -2,7 +2,7 @@
 
 import { useObject } from '@ai-sdk/react';
 import { MessageSquarePlus, Square } from 'lucide-react';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -14,18 +14,22 @@ import { retranslateSchema } from '@/lib/ai/schema';
 import { type Tone } from '@/lib/ai/tone';
 
 type TranslationSegmentProps = {
+  segmentIndex: number;
   sourceSegment: string;
   translatedSegment: string;
   targetLanguage: LanguageCode;
   tone: Tone;
-  onRetranslated: (translatedText: string) => void;
+  translationId: string | null;
+  onRetranslated: (index: number, translatedText: string) => void;
 };
 
 const TranslationSegment = ({
+  segmentIndex,
   sourceSegment,
   translatedSegment,
   targetLanguage,
   tone,
+  translationId,
   onRetranslated,
 }: TranslationSegmentProps) => {
   const [comment, setComment] = useState('');
@@ -43,7 +47,7 @@ const TranslationSegment = ({
         toast.error('Die Neuübersetzung war unvollständig. Bitte versuche es erneut.');
         return;
       }
-      onRetranslated(retranslation.translatedText);
+      onRetranslated(segmentIndex, retranslation.translatedText);
       setIsCommenting(false);
       setComment('');
     },
@@ -52,7 +56,16 @@ const TranslationSegment = ({
 
   const handleSubmit = () => {
     if (isLoading) return;
-    submit({ segmentText: sourceSegment, comment, targetLanguage, tone });
+    // translationId and segmentIndex are what the route needs to store the result itself — the
+    // client reports which paragraph it re-translated, not what the saved document should become.
+    submit({
+      segmentText: sourceSegment,
+      comment,
+      targetLanguage,
+      tone,
+      translationId,
+      segmentIndex,
+    });
   };
 
   return (
@@ -122,4 +135,7 @@ const TranslationSegment = ({
   );
 };
 
-export default TranslationSegment;
+// Memoised because every keystroke in the source field re-renders the provider and with it the
+// whole segment list. All props are stable across those renders (the callback is a useCallback in
+// the provider), so an untouched paragraph — including one mid-stream — bails out here.
+export default memo(TranslationSegment);

@@ -44,7 +44,8 @@ const Translate = () => {
     stop,
     segments,
     sourceSegments,
-    retranslateSegment,
+    translationId,
+    replaceSegment,
     clear,
   } = useTranslate();
 
@@ -115,11 +116,13 @@ const Translate = () => {
                 {segments.map((segment, index) => (
                   <TranslationSegment
                     key={index}
+                    segmentIndex={index}
                     sourceSegment={sourceSegments[index] ?? ''}
                     translatedSegment={segment}
                     targetLanguage={targetLanguage}
                     tone={tone}
-                    onRetranslated={(translatedText) => retranslateSegment(index, translatedText)}
+                    translationId={translationId}
+                    onRetranslated={replaceSegment}
                   />
                 ))}
                 {/* eslint-enable react/no-array-index-key */}

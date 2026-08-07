@@ -1,7 +1,7 @@
 'use client';
 
 import { useObject } from '@ai-sdk/react';
-import { createContext, type ReactNode, useContext, useState } from 'react';
+import { createContext, type ReactNode, useCallback, useContext, useState } from 'react';
 import { toast } from 'sonner';
 
 import { AUTH_ERROR, fetchWithAuthError } from '@/lib/ai/auth-fetch';
@@ -35,29 +35,51 @@ const parseTranslateError = (error: Error | undefined): TranslateError | null =>
   return { kind: 'generic' };
 };
 
-// Everything useObject holds (object, isLoading, the running fetch) plus the form fields. Lives
-// above the routed pages (see app/dashboard/layout.tsx) instead of inside translate.tsx, so
-// navigating to /dashboard/history and back doesn't unmount it — a translation in progress keeps
-// streaming, and the result is still there when the user comes back.
-const TranslateContext = createContext<ReturnType<typeof useTranslateState> | null>(null);
-
-const useTranslateState = () => {
+// What the user is about to translate. Separated from the stream below because the two change on
+// completely different rhythms — this one on every keystroke, the other once per request.
+const useTranslateForm = () => {
   const [sourceText, setSourceText] = useState('');
   const [targetLanguage, setTargetLanguage] = useState<LanguageCode>('en');
   const [tone, setTone] = useState<Tone>('neutral');
 
-  // Snapshots, not per-render derivations. `segments` has to outlive the raw translated text
-  // because FA-07 replaces individual paragraphs in it; `sourceSegments` is captured at submit
-  // time so it stays index-aligned with `segments` even if the source field is edited afterwards
-  // (a shifted index would send the wrong paragraph to /api/retranslate). Both live here rather
-  // than in translate.tsx so a retranslated paragraph survives navigating away and back.
+  return {
+    sourceText,
+    setSourceText,
+    targetLanguage,
+    setTargetLanguage,
+    tone,
+    setTone,
+    isTooLong: sourceText.length > MAX_SOURCE_TEXT_LENGTH,
+  };
+};
+
+type TranslateForm = ReturnType<typeof useTranslateForm>;
+
+// The translation itself: the running request, the resulting document, and the history row it was
+// saved as. Persistence is deliberately absent — both routes store what they generate (see
+// lib/translations/history.ts), so nothing here describes what the database should contain.
+const useTranslationStream = ({ sourceText, targetLanguage, tone, isTooLong }: TranslateForm) => {
+  // `segments` is the document the user sees, and FA-07 replaces individual paragraphs in it, so it
+  // outlives the raw translated text it was derived from. `sourceSegments` is captured at submit
+  // time to stay index-aligned with it even if the source field is edited afterwards — a shifted
+  // index would send the wrong paragraph to /api/retranslate.
   const [segments, setSegments] = useState<string[]>([]);
   const [sourceSegments, setSourceSegments] = useState<string[]>([]);
+  // Row id of the history entry this translation was saved as, handed over by the route in a
+  // response header (see app/api/translate/route.ts). Null while unauthenticated or before the
+  // first response — a re-translation then simply isn't persisted rather than failing.
+  const [translationId, setTranslationId] = useState<string | null>(null);
 
   const { object, submit, isLoading, error, stop, clear } = useObject({
     api: '/api/translate',
     schema: translationSchema,
-    fetch: fetchWithAuthError,
+    // Wraps the shared helper only to pick the row id out of the headers on the way through —
+    // useObject exposes the streamed body, not the response itself.
+    fetch: async (input, init) => {
+      const response = await fetchWithAuthError(input, init);
+      setTranslationId(response.headers.get('X-Translation-Id'));
+      return response;
+    },
     // Fires once per completed stream, so reacting to a finished translation needs no effect and
     // no "did I already handle this object?" bookkeeping.
     onFinish: ({ object: translation, error }) => {
@@ -71,7 +93,7 @@ const useTranslateState = () => {
     // any streaming happens) — never in addition to onFinish.
     onError: (error) => {
       const parsed = parseTranslateError(error);
-      // Not a toast: the unsupported-language case is surfaced as a dialog, see `unsupportedLanguage`.
+      // Not a toast: the unsupported-language case is surfaced as a dialog, see below.
       if (!parsed || parsed.kind === 'unsupported-language') return;
 
       if (parsed.kind === 'auth') {
@@ -93,7 +115,6 @@ const useTranslateState = () => {
     },
   });
 
-  const isTooLong = sourceText.length > MAX_SOURCE_TEXT_LENGTH;
   const canSubmit = sourceText.trim().length > 0 && !isTooLong && !isLoading;
 
   const handleSubmit = () => {
@@ -102,44 +123,52 @@ const useTranslateState = () => {
     submit({ sourceText, targetLanguage, tone });
   };
 
-  const retranslateSegment = (index: number, translatedText: string) => {
+  // Stable identity on purpose: it is handed to every TranslationSegment, which is memoised, and a
+  // callback recreated per render would defeat that on every keystroke in the source field.
+  const replaceSegment = useCallback((index: number, translatedText: string) => {
     setSegments((prev) => prev.map((segment, i) => (i === index ? translatedText : segment)));
-  };
+  }, []);
 
   const reset = () => {
     clear();
     setSegments([]);
     setSourceSegments([]);
+    setTranslationId(null);
   };
 
   const translateError = parseTranslateError(error);
-  const unsupportedLanguage =
-    translateError?.kind === 'unsupported-language' ? translateError.detectedSourceLanguage : null;
 
   return {
-    sourceText,
-    setSourceText,
-    targetLanguage,
-    setTargetLanguage,
-    tone,
-    setTone,
     object,
     isLoading,
     canSubmit,
-    isTooLong,
     handleSubmit,
-    unsupportedLanguage,
     stop,
+    clear: reset,
     segments,
     sourceSegments,
-    retranslateSegment,
-    clear: reset,
+    translationId,
+    replaceSegment,
+    unsupportedLanguage:
+      translateError?.kind === 'unsupported-language'
+        ? translateError.detectedSourceLanguage
+        : null,
   };
 };
 
+// Lives above the routed pages (see app/dashboard/layout.tsx) instead of inside translate.tsx, so
+// navigating to /dashboard/history and back doesn't unmount it — a translation in progress keeps
+// streaming, and the result is still there when the user comes back.
+type TranslateContextValue = TranslateForm & ReturnType<typeof useTranslationStream>;
+
+const TranslateContext = createContext<TranslateContextValue | null>(null);
+
 export const TranslateProvider = ({ children }: { children: ReactNode }) => {
-  const value = useTranslateState();
-  return <TranslateContext.Provider value={value}>{children}</TranslateContext.Provider>;
+  const form = useTranslateForm();
+  const stream = useTranslationStream(form);
+  return (
+    <TranslateContext.Provider value={{ ...form, ...stream }}>{children}</TranslateContext.Provider>
+  );
 };
 
 export const useTranslate = () => {

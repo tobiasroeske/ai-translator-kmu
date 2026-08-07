@@ -3,16 +3,24 @@ import { createTextStreamResponse, Output, streamText, toTextStream } from 'ai';
 import { getModel } from '@/lib/ai/provider';
 import { retranslateSchema } from '@/lib/ai/schema';
 import { isSupportedTone, toneInstructions } from '@/lib/ai/tone';
+import { createClient } from '@/lib/supabase/server';
+import { replaceTranslationSegment } from '@/lib/translations/history';
 
 type RequestBody = {
   segmentText: string;
   comment: string;
   targetLanguage: string;
   tone: string;
+  // Which paragraph of which stored translation this refines. Null when the original translation
+  // was never persisted (no session, or the insert failed) — the re-translation still runs, it just
+  // isn't written anywhere.
+  translationId: string | null;
+  segmentIndex: number;
 };
 
 export const POST = async (req: Request) => {
-  const { segmentText, comment, targetLanguage, tone }: RequestBody = await req.json();
+  const { segmentText, comment, targetLanguage, tone, translationId, segmentIndex }: RequestBody =
+    await req.json();
 
   if (!isSupportedTone(tone)) {
     return Response.json({ error: 'Invalid tone' }, { status: 400 });
@@ -25,6 +33,10 @@ export const POST = async (req: Request) => {
   const commentInstruction = trimmedComment
     ? `Comment: ${trimmedComment}`
     : 'Comment: none — rephrase the Segment using your best judgment.';
+
+  // Created before streaming starts: it reads the request cookies, which onFinish can no longer
+  // reach once the response is on its way.
+  const supabase = await createClient();
 
   const result = streamText({
     model: getModel(),
@@ -54,6 +66,21 @@ export const POST = async (req: Request) => {
       `${commentInstruction}\n\n` +
       `Translate the Segment above to ${targetLanguage}. Stop at the end of the Segment.`,
     onError: ({ error }) => console.error(error),
+    // Same shape as /api/translate: whoever generates the text is also the one who stores it, so
+    // the client never has to describe what the persisted document should look like.
+    onFinish: async () => {
+      if (!translationId) return;
+      try {
+        const retranslation = await result.output;
+        await replaceTranslationSegment(supabase, {
+          translationId,
+          segmentIndex,
+          translatedText: retranslation.translatedText,
+        });
+      } catch (error) {
+        console.error('Failed to persist re-translation:', error);
+      }
+    },
   });
 
   return createTextStreamResponse({

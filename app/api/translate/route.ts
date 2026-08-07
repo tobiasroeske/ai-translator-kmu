@@ -7,6 +7,7 @@ import { getModel } from '@/lib/ai/provider';
 import { translationSchema } from '@/lib/ai/schema';
 import { isSupportedTone, toneInstructions } from '@/lib/ai/tone';
 import { createClient } from '@/lib/supabase/server';
+import { saveTranslation } from '@/lib/translations/history';
 
 type RequestBody = {
   sourceText: string;
@@ -49,6 +50,12 @@ export const POST = async (req: Request) => {
   const user = await supabase.auth.getUser();
   const userId = user.data.user?.id;
 
+  // Generated here instead of by the column default because the client needs this id to update the
+  // row later (FA-07 re-translation), and the insert only happens in onFinish — long after the
+  // response headers are gone. Generating it up front is what lets it travel in a header while the
+  // row itself doesn't exist yet. Server-side, so no secure-context caveat applies.
+  const translationId = crypto.randomUUID();
+
   const result = streamText({
     model: getModel(),
     output: Output.object({ schema: translationSchema }),
@@ -70,29 +77,30 @@ export const POST = async (req: Request) => {
       'no additional languages, no meta-commentary of any kind.',
     prompt: `Detect the source language and translate the following text to ${targetLanguage}.\n\nText:\n${sourceText}`,
     onError: ({ error }) => console.error(error),
-    // History is a side effect of a finished translation, never a reason to fail one — the stream
-    // has already reached the client by the time this runs, so everything in here is logged
-    // rather than surfaced. result.output rejects when the model output doesn't match the schema
-    // (e.g. a truncated response), which would otherwise become an unhandled rejection.
+    // result.output rejects when the model output doesn't match the schema (e.g. a truncated
+    // response), which would otherwise become an unhandled rejection.
     onFinish: async () => {
       if (!userId) return;
       try {
         const translation = await result.output;
-        const { error } = await supabase.from('translations').insert({
-          user_id: userId,
-          source_text: sourceText,
-          source_language: translation.detectedSourceLanguage,
-          target_language: targetLanguage,
+        await saveTranslation(supabase, {
+          id: translationId,
+          userId,
+          sourceText,
+          sourceLanguage: translation.detectedSourceLanguage,
+          targetLanguage,
           tone,
-          translated_text: translation.translatedText,
+          translatedText: translation.translatedText,
         });
-        if (error) console.error('Failed to save translation to history:', error);
       } catch (error) {
         console.error('Failed to save translation to history:', error);
       }
     },
   });
   return createTextStreamResponse({
+    // Only sent when there is a user to own the row — without one nothing is inserted in onFinish,
+    // so handing out an id would point the client at a row that never exists.
+    headers: userId ? { 'X-Translation-Id': translationId } : undefined,
     stream: toTextStream(result),
   });
 };
