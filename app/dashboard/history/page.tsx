@@ -1,4 +1,7 @@
+import { redirect } from 'next/navigation';
+
 import AiGeneratedBadge from '@/components/ai-generated-badge';
+import Pagination from '@/components/pagination';
 import TranslationDisclaimer from '@/components/translation-disclaimer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toLanguageName } from '@/lib/ai/languages';
@@ -10,15 +13,39 @@ const dateFormatter = new Intl.DateTimeFormat('de-DE', {
   timeStyle: 'short',
 });
 
-const HistoryPage = async () => {
+type HistoryPageProps = {
+  searchParams: Promise<{ page?: string }>;
+};
+
+const HistoryPage = async ({ searchParams }: HistoryPageProps) => {
+  const rawPage = Number((await searchParams).page);
+  const requestedPage = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+  const pageSize = 5;
+
   const supabase = await createClient();
+
+  // Count first (head: true — no rows, just the count) and clamp the page before ever building
+  // a range. A page past the available data (?page=99 with only 3 pages worth of rows) would
+  // otherwise make .range() ask PostgREST for an out-of-bounds slice, which answers with 416
+  // Range Not Satisfiable — supabase-js surfaces that as a near-empty {} error, not something
+  // worth showing the user as "load failed". Clamping turns an invalid URL into a valid one
+  // instead of treating it as a data-loading problem.
+  const { count } = await supabase.from('translations').select('*', { count: 'exact', head: true });
+
+  const totalPages = Math.max(1, Math.ceil((count ?? 0) / pageSize));
+  const page = Math.min(requestedPage, totalPages);
+
+  if (page !== requestedPage) {
+    redirect(`/dashboard/history?page=${page}`);
+  }
 
   // No user_id filter — the select policy scopes this to the session's own rows. Filtering here
   // too would only duplicate the guarantee in a place that can silently drift from it.
   const { data: translations, error } = await supabase
     .from('translations')
     .select('*')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .range((page - 1) * pageSize, page * pageSize - 1);
 
   if (error) {
     console.error('Failed to load translation history:', error);
@@ -77,6 +104,8 @@ const HistoryPage = async () => {
               </CardContent>
             </Card>
           ))}
+
+          <Pagination page={page} totalPages={totalPages} basePath="/dashboard/history" />
         </div>
       )}
     </div>

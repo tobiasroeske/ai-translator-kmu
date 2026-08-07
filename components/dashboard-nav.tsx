@@ -26,8 +26,8 @@ const DashboardNav = () => {
             href={href}
             aria-current={isActive ? 'page' : undefined}
             className={cn(
-              'transition-colors hover:text-foreground',
-              isActive ? 'font-medium text-foreground' : 'text-muted-foreground'
+              'transition-colors hover:text-foreground hover:bg-accent py-1 px-2 rounded-md',
+              isActive ? 'font-bold text-foreground bg-accent' : 'text-muted-foreground'
             )}
           >
             {label}
