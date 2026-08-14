@@ -27,51 +27,56 @@ For the full requirements list (FA/NFA) that drives scope decisions, see [`docs/
 
 - Node (version pinned in [`.nvmrc`](.nvmrc) — use `nvm use`)
 - pnpm (version pinned in `package.json#packageManager` — `corepack enable` will pick it up automatically)
-- [Ollama](https://ollama.com) installed natively, **or** Docker — for local AI inference without API costs
-- A [Supabase](https://supabase.com) project (free tier is enough) for auth
+- [Docker](https://www.docker.com/products/docker-desktop/), running
 
-## Getting Started
+That is the whole list. No accounts, no API keys, no Supabase project — see below.
 
-### 1. Install dependencies
+## Quick Start (evaluation / demo)
 
 ```bash
 pnpm install
+pnpm demo
 ```
 
-### 2. Configure environment variables
+Open [http://localhost:3000](http://localhost:3000) and choose **„Als Gast anmelden"** — no registration, no email address.
+
+`pnpm demo` ([`scripts/demo-setup.sh`](scripts/demo-setup.sh)) does everything else:
+
+| Step        | What happens                                                                                                                                                                              |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Supabase    | The full stack starts locally in Docker via the Supabase CLI. Everything in `supabase/migrations` is applied, so the `translations` table and its RLS policies exist.                     |
+| Credentials | The local stack's URL and publishable key are written to `.env.development.local` — generated, gitignored, never committed.                                                               |
+| AI          | Uses a natively installed Ollama when one is running; otherwise starts the Ollama container. Either way `qwen2.5:7b` is pulled if missing (~4.7 GB on first run — that is the slow part). |
+
+Guest login works out of the box because `enable_anonymous_sign_ins = true` in [`supabase/config.toml`](supabase/config.toml), which configures the local stack.
+
+Everything runs on your machine: the model is local, the database is local, and no request leaves the host.
+
+Tear it down again with:
 
 ```bash
-cp .env.local.example .env.local
+pnpm demo:down             # stop everything, keep the data volumes
+pnpm demo:down -- --purge  # also delete the local database and the container's model volume
 ```
 
-Fill in your Supabase project URL and publishable key (Supabase Dashboard → Project Settings → API). Leave `AI_PROVIDER=ollama` for local development — no API key required.
+A natively installed Ollama is never touched by either command.
 
-### 3. Start the AI provider
+## Development against a hosted Supabase project
 
-**Option A — native Ollama (recommended for local dev):**
-
-```bash
-ollama pull qwen2.5:7b
-ollama serve
-```
-
-**Option B — containerized Ollama (zero local setup, see [Docker](#docker)):**
+For work against the real project rather than the local stack:
 
 ```bash
-pnpm docker:up
-```
-
-### 4. Run the dev server
-
-```bash
+cp .env.local.example .env.local   # fill in URL + publishable key
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+`.env.local` is only in effect when no `.env.development.local` exists — Next.js ranks the latter higher. Run `pnpm demo:down` to remove it.
 
 ## Commands
 
 ```bash
+pnpm demo             # one-command local demo (Supabase + Ollama + dev server)
+pnpm demo:down        # stop it again (add -- --purge to drop the data volumes)
 pnpm dev              # start dev server (Turbopack)
 pnpm build            # production build
 pnpm start            # run the production build
@@ -79,10 +84,12 @@ pnpm lint             # ESLint
 pnpm format           # Prettier --write
 pnpm format:check     # Prettier --check
 pnpm typecheck        # tsc --noEmit
-pnpm ci:test          # lint + format:check + typecheck — run before every commit
+pnpm test             # Vitest — pure logic in lib/**/*.test.ts
+pnpm ci:test          # lint + format:check + typecheck + test — run before every commit
 ```
 
-There is no test suite configured yet — `pnpm ci:test` is the closest thing to a merge gate.
+`pnpm test` covers the pure logic in `lib/` (segment assembly, the language-catalog guard, error
+classification). Anything that streams, renders, or talks to Supabase is verified by running the app.
 
 ## Docker
 
