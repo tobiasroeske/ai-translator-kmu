@@ -2,7 +2,7 @@
 
 import { useObject } from '@ai-sdk/react';
 import { MessageSquarePlus, Square } from 'lucide-react';
-import { memo, useState } from 'react';
+import { memo, useId, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -10,13 +10,14 @@ import { Field, FieldLabel } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
 import { fetchWithAuthError } from '@/lib/ai/auth-fetch';
 import { type LanguageCode } from '@/lib/ai/languages';
-import { retranslateSchema } from '@/lib/ai/schema';
+import { translationOutputSchema } from '@/lib/ai/schema';
 import { type Tone } from '@/lib/ai/tone';
 
 type TranslationSegmentProps = {
   segmentIndex: number;
   sourceSegment: string;
   translatedSegment: string;
+  sourceLanguage: LanguageCode | null;
   targetLanguage: LanguageCode;
   tone: Tone;
   translationId: string | null;
@@ -27,6 +28,7 @@ const TranslationSegment = ({
   segmentIndex,
   sourceSegment,
   translatedSegment,
+  sourceLanguage,
   targetLanguage,
   tone,
   translationId,
@@ -34,16 +36,22 @@ const TranslationSegment = ({
 }: TranslationSegmentProps) => {
   const [comment, setComment] = useState('');
   const [isCommenting, setIsCommenting] = useState(false);
+  // Every rendered segment needs its own field id for the label to point at. Derived from React
+  // rather than from the paragraph's text or index: the text makes an unusable id, and an index is
+  // only unique within the list that produced it.
+  const commentFieldId = useId();
 
   const { object, submit, isLoading, stop } = useObject({
     api: '/api/retranslate',
-    schema: retranslateSchema,
+    schema: translationOutputSchema,
     fetch: fetchWithAuthError,
     // Everything that happens once a retranslation completes lives here rather than in an effect:
     // the callback fires exactly once per stream, so there is no render-identity dependency that
     // could re-trigger it (an inline onRetranslated prop plus an effect is an update loop).
     onFinish: ({ object: retranslation, error }) => {
-      if (error || !retranslation) {
+      // An empty revision would blank the paragraph on screen — the route declines to store one
+      // for the same reason, so display and history stay in step.
+      if (error || !retranslation?.translatedText?.trim()) {
         toast.error('Die Neuübersetzung war unvollständig. Bitte versuche es erneut.');
         return;
       }
@@ -56,10 +64,16 @@ const TranslationSegment = ({
 
   const handleSubmit = () => {
     if (isLoading) return;
-    // translationId and segmentIndex are what the route needs to store the result itself — the
-    // client reports which paragraph it re-translated, not what the saved document should become.
+    // currentTranslation is what the user is commenting on, so it is what gets revised.
+    // sourceSegment is matched to this paragraph by position and can be the wrong one when the
+    // model merges or splits paragraphs, so it travels as context only, never as the subject.
+    //
+    // translationId and segmentIndex are what the route needs to store the result itself: the
+    // client reports which paragraph it revised, not what the saved document should become.
     submit({
+      currentTranslation: translatedSegment,
       segmentText: sourceSegment,
+      sourceLanguage,
       comment,
       targetLanguage,
       tone,
@@ -92,11 +106,11 @@ const TranslationSegment = ({
       {isCommenting && (
         <div className="mt-2 flex flex-col gap-2 rounded-md border p-3">
           <Field>
-            <FieldLabel htmlFor={`comment-${sourceSegment}`} className="sr-only">
+            <FieldLabel htmlFor={commentFieldId} className="sr-only">
               Kommentar zu diesem Absatz
             </FieldLabel>
             <Textarea
-              id={`comment-${sourceSegment}`}
+              id={commentFieldId}
               value={comment}
               onChange={(e) => setComment(e.currentTarget.value)}
               placeholder="z. B. Fachbegriff X statt Y verwenden ..."

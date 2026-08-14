@@ -4,36 +4,13 @@ import { useObject } from '@ai-sdk/react';
 import { createContext, type ReactNode, useCallback, useContext, useState } from 'react';
 import { toast } from 'sonner';
 
-import { AUTH_ERROR, fetchWithAuthError } from '@/lib/ai/auth-fetch';
-import { type LanguageCode } from '@/lib/ai/languages';
+import { fetchWithAuthError } from '@/lib/ai/auth-fetch';
+import { isSupportedLanguageCode, type LanguageCode } from '@/lib/ai/languages';
 import { MAX_SOURCE_TEXT_LENGTH } from '@/lib/ai/limits';
-import { translationSchema } from '@/lib/ai/schema';
+import { translationOutputSchema } from '@/lib/ai/schema';
 import { segmentText } from '@/lib/ai/segment';
 import { type Tone } from '@/lib/ai/tone';
-
-type TranslateError =
-  | { kind: 'unsupported-language'; detectedSourceLanguage: string }
-  | { kind: 'auth' }
-  | { kind: 'generic' };
-
-// useObject puts the raw response body into error.message, which is only JSON for the errors the
-// route returns deliberately — anything else (an HTML error page, a network failure) lands here
-// too. Classifying it in one place keeps that raw text out of the UI; the route logs the cause.
-const parseTranslateError = (error: Error | undefined): TranslateError | null => {
-  if (!error) return null;
-  if (error.message.includes(AUTH_ERROR)) return { kind: 'auth' };
-
-  try {
-    const body = JSON.parse(error.message) as { detectedSourceLanguage?: unknown };
-    if (typeof body.detectedSourceLanguage === 'string') {
-      return { kind: 'unsupported-language', detectedSourceLanguage: body.detectedSourceLanguage };
-    }
-  } catch {
-    // Body isn't JSON — nothing to extract, fall through to the generic case.
-  }
-
-  return { kind: 'generic' };
-};
+import { parseTranslateError } from '@/lib/ai/translate-error';
 
 // What the user is about to translate. Separated from the stream below because the two change on
 // completely different rhythms — this one on every keystroke, the other once per request.
@@ -55,6 +32,17 @@ const useTranslateForm = () => {
 
 type TranslateForm = ReturnType<typeof useTranslateForm>;
 
+// Facts about the current translation that the route establishes rather than generates, handed
+// over in response headers: the id of the history row it was saved as (needed to update a single
+// paragraph later, FA-07) and the source language it was validated against. Both are null while
+// no request has completed — a re-translation then simply isn't persisted rather than failing.
+type TranslationMeta = {
+  id: string | null;
+  detectedSourceLanguage: LanguageCode | null;
+};
+
+const emptyMeta: TranslationMeta = { id: null, detectedSourceLanguage: null };
+
 // The translation itself: the running request, the resulting document, and the history row it was
 // saved as. Persistence is deliberately absent — both routes store what they generate (see
 // lib/translations/history.ts), so nothing here describes what the database should contain.
@@ -65,19 +53,23 @@ const useTranslationStream = ({ sourceText, targetLanguage, tone, isTooLong }: T
   // index would send the wrong paragraph to /api/retranslate.
   const [segments, setSegments] = useState<string[]>([]);
   const [sourceSegments, setSourceSegments] = useState<string[]>([]);
-  // Row id of the history entry this translation was saved as, handed over by the route in a
-  // response header (see app/api/translate/route.ts). Null while unauthenticated or before the
-  // first response — a re-translation then simply isn't persisted rather than failing.
-  const [translationId, setTranslationId] = useState<string | null>(null);
+  const [meta, setMeta] = useState<TranslationMeta>(emptyMeta);
 
   const { object, submit, isLoading, error, stop, clear } = useObject({
     api: '/api/translate',
-    schema: translationSchema,
-    // Wraps the shared helper only to pick the row id out of the headers on the way through —
-    // useObject exposes the streamed body, not the response itself.
+    schema: translationOutputSchema,
+    // Wraps the shared helper only to pick the response headers off on the way through — useObject
+    // exposes the streamed body, not the response itself.
     fetch: async (input, init) => {
       const response = await fetchWithAuthError(input, init);
-      setTranslationId(response.headers.get('X-Translation-Id'));
+      // Re-checked rather than trusted: the route only streams for a catalog language, but a
+      // header is a string until something narrows it, and the value is passed on to
+      // /api/retranslate as a typed field.
+      const detected = response.headers.get('X-Detected-Source-Language');
+      setMeta({
+        id: response.headers.get('X-Translation-Id'),
+        detectedSourceLanguage: isSupportedLanguageCode(detected) ? detected : null,
+      });
       return response;
     },
     // Fires once per completed stream, so reacting to a finished translation needs no effect and
@@ -133,7 +125,7 @@ const useTranslationStream = ({ sourceText, targetLanguage, tone, isTooLong }: T
     clear();
     setSegments([]);
     setSourceSegments([]);
-    setTranslationId(null);
+    setMeta(emptyMeta);
   };
 
   const translateError = parseTranslateError(error);
@@ -147,8 +139,12 @@ const useTranslationStream = ({ sourceText, targetLanguage, tone, isTooLong }: T
     clear: reset,
     segments,
     sourceSegments,
-    translationId,
+    translationId: meta.id,
+    detectedSourceLanguage: meta.detectedSourceLanguage,
     replaceSegment,
+    // Whether there is output on screen to qualify. Decided here, from what the app knows it
+    // produced — never from a field in the model's response (see lib/ai/schema.ts).
+    hasTranslation: segments.length > 0 || Boolean(object?.translatedText),
     unsupportedLanguage:
       translateError?.kind === 'unsupported-language'
         ? translateError.detectedSourceLanguage
