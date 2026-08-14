@@ -25,18 +25,30 @@ Der Nutzer will bei diesem Projekt gezielt lernen, nicht nur ein fertiges Ergebn
 
 ---
 
-## ⚠️ Current repo state vs. target architecture
+## Current repo state
 
-**Read this before assuming any file matches the description below.** The repo was bootstrapped from a starter scaffold shared with the sibling "Meeting Intelligence Tool" project (single commit so far: "chore: initial setup"), and the scaffold's _functionality_ has **not yet been adapted** to this project (the naming/branding has — see below). Concretely, right now:
+Phases A and B of the implementation plan are done: FA-01 to FA-10 are built and working against
+Ollama. What exists and is safe to build on:
 
-- Naming/branding is already fixed: `package.json` name is `ki-translator-kmu`, Docker image/container names and the `app/layout.tsx`, `app/dashboard/layout.tsx`, `app/(auth)/layout.tsx` titles all say "KI Translator KMU", and `.env.local.example` / `.github/workflows/ci.yml` headers match. Don't reintroduce "Meeting Intelligence" anywhere.
-- `app/api/translate/route.ts` now exists (`streamText` + `Output.object({ schema: translationSchema })`, see `lib/ai/schema.ts`) alongside the still-present `app/api/chat/route.ts` generic chat endpoint (`useChat` + `DefaultChatTransport`) — the chat route will be deleted once `translate.tsx` replaces the dashboard chat UI. `/api/retranslate` (FA-07) doesn't exist yet.
-- `lib/ai/provider.ts` (moved from `lib/provider/provider.ts`) now switches between `ollama` and `mistral` via `AI_PROVIDER`, matching the tech-stack table below.
-- **`generateObject`/`streamObject` are deprecated as of `ai` v6+** (we're on v7) — use `streamText`/`generateText` with `output: Output.object({ schema })` instead. `app/api/translate/route.ts` is the reference implementation.
-- There is no `lib/ai/schema.ts`, no translation Zod schema, no `translations` table/migration, no PDF export route, no tone/segment-comment UI — none of FA-02/05/07/08/09/10/11 are implemented yet.
-- What **does** already work and is safe to build on: Supabase auth (email/password login + signup via Server Actions, session middleware, RLS-ready client setup), the `(auth)`/`dashboard` route group split, the shadcn/ui + Tailwind v4 setup, the lint/format/typecheck tooling, and the Docker/Ollama local-dev pipeline.
+- `app/api/translate` and `app/api/retranslate` — both `streamText` + `Output.object`, each with an
+  input schema next to the route, each persisting what it generates.
+- `lib/ai/` — provider switch, output schema, language catalog, tone instructions, request limits,
+  segmentation, language detection, error classification. Everything here is framework-free; the pure
+  parts are covered by Vitest.
+- `lib/translations/history.ts` — the two Supabase writes (insert, segment update).
+- `components/translate-provider.tsx` — form state + stream state, mounted in the dashboard layout so a
+  running translation survives navigation to `/dashboard/history`.
+- Supabase auth (email/password via Server Actions, session middleware, RLS), three applied migrations
+  for the `translations` table, the `(auth)`/`dashboard` route split, shadcn/ui + Tailwind v4, the
+  lint/format/typecheck/test tooling and the Docker/Ollama pipeline.
 
-Until this gap is closed, treat the **Tech Stack / Architecture / Folder Structure / Key Patterns / Database Schema** sections below as the _target_ to build toward, not a description of files that currently exist — except where explicitly marked "(current)". When implementing FA-01–FA-12, expect to: rename/repurpose `app/api/chat` → `app/api/translate` + `app/api/retranslate`, add `lib/ai/schema.ts`, and add the `translations` table via a Supabase migration.
+**`generateObject`/`streamObject` are deprecated as of `ai` v6+** (we're on v7) — use
+`streamText`/`generateText` with `output: Output.object({ schema })`. `app/api/translate/route.ts` is the
+reference implementation.
+
+Still open: FA-11 (PDF export) and FA-12 (copy to clipboard) — Phase C, neither started. `AI_PROVIDER=mistral`
+is implemented but has never been run (no API key); `MAX_SOURCE_TEXT_LENGTH` is calibrated to qwen2.5:7b's
+4096-token window and should be revisited when it is.
 
 ---
 
@@ -70,7 +82,9 @@ pnpm lint             # ESLint
 pnpm format           # Prettier --write
 pnpm format:check     # Prettier --check
 pnpm typecheck        # tsc --noEmit
-pnpm ci:test          # lint + format:check + typecheck — run before every commit
+pnpm test             # Vitest, pure logic in lib/**/*.test.ts
+pnpm test:watch       # Vitest in watch mode
+pnpm ci:test          # lint + format:check + typecheck + test — run before every commit
 
 # Docker (see docker-compose.yml)
 pnpm docker:build     # build the app image
@@ -82,7 +96,12 @@ pnpm docker:logs
 pnpm docker:ps
 ```
 
-No test suite is configured yet — there is no `pnpm test`. `pnpm ci:test` is the closest thing to a gate and should be run before committing.
+`pnpm test` runs Vitest (`vitest run`) over `lib/**/*.test.ts` — pure logic only: segment assembly, the
+FA-02 catalog guard, error classification. No jsdom, no React rendering, no mocked model. It is part of
+`pnpm ci:test`, which is the gate to run before every commit.
+
+Anything that streams, renders or talks to Supabase is verified by running the app, not by mocking it. When
+adding logic that decides something, put it in `lib/` as a pure function so it can be covered there.
 
 ---
 
@@ -97,32 +116,54 @@ app/
 │   ├── login/
 │   │   ├── page.tsx        → login + signup tabs (shadcn Tabs)
 │   │   └── schema.ts       → Zod schema for email/password validation
+│   ├── confirm-signup/     → click-through page for the confirmation mail (verifyOtp)
 │   └── auth-code-error/    → shown when the OAuth/email-confirm callback fails
-├── dashboard/               → protected (see proxy.ts), currently a chat demo
-│   ├── layout.tsx
-│   ├── page.tsx
-│   └── chat.tsx             → useChat + chatTransport, "use client"
+├── dashboard/               → protected (see proxy.ts)
+│   ├── layout.tsx           → nav + TranslateProvider (above the routed pages)
+│   ├── page.tsx             → renders <Translate />
+│   ├── translate.tsx        → the translation UI, "use client", reads useTranslate()
+│   ├── translate-segment.tsx → one paragraph + its comment box, own useObject, memoised
+│   └── history/page.tsx     → FA-09, Server Component, paginated
 ├── api/
-│   ├── chat/route.ts        → POST: streamText via getModel(), generic chat (NOT translation)
+│   ├── translate/           → route.ts (POST, streams) + schema.ts (input contract)
+│   ├── retranslate/         → route.ts (POST, streams) + schema.ts (input contract)
 │   ├── auth/callback/route.ts → GET: exchanges OAuth/email-confirm code for a session
 │   ├── health/route.ts      → GET: liveness check for Docker healthcheck
 │   └── ai-smoke-test/route.ts → GET: generateText "Pong" smoke test against the active provider
 └── layout.tsx                → root layout, Inter font, "KI Translator KMU" metadata
 components/
+├── translate-provider.tsx    → form state + stream state + context, "use client"
+├── translation-notice.tsx    → FA-05 + FA-10 notice shown on every translation output
+├── unsupported-language-dialog.tsx
+├── enum-select.tsx           → typed wrapper around the shadcn Select
+├── pagination.tsx
+├── dashboard-nav.tsx
 ├── logoutButton.tsx
 └── ui/                       → shadcn-generated, excluded from ESLint (globalIgnores)
 lib/
 ├── supabase/
 │   ├── client.ts             → browser-side Supabase client
-│   ├── server.ts              → server-side Supabase client (Route Handlers, Server Components)
-│   └── middleware.ts          → updateSession(), called from proxy.ts
+│   ├── server.ts             → server-side Supabase client (Route Handlers, Server Components)
+│   ├── middleware.ts         → updateSession(), called from proxy.ts
+│   └── database.types.ts     → generated Supabase types
 ├── ai/
-│   ├── provider.ts            → getModel(): AI_PROVIDER switch (ollama | mistral)
-│   └── chat-transport.ts      → DefaultChatTransport wrapping fetch to surface 401 as AUTH_ERROR
-└── utils.ts                   → cn() (clsx + tailwind-merge)
+│   ├── provider.ts           → getModel(): AI_PROVIDER switch (ollama | mistral)
+│   ├── schema.ts             → translationOutputSchema (model output)
+│   ├── languages.ts          → FA-06 catalog, guard, display + prompt names
+│   ├── tone.ts               → FA-08 tones and their prompt instructions
+│   ├── limits.ts             → length bounds + output token budget
+│   ├── segment.ts            → paragraph split/join/replace (FA-07)
+│   ├── detect-language.ts    → separate, cheap detection call (FA-02)
+│   ├── translate-error.ts    → error codes + client-side classification
+│   ├── auth-fetch.ts         → fetch wrapper surfacing a 401 as AUTH_ERROR
+│   └── *.test.ts             → Vitest, pure logic only
+├── translations/history.ts   → the two Supabase writes (insert, segment update)
+└── utils.ts                  → cn(), createEnumGuard()
 proxy.ts                       → Next.js middleware entry, delegates to updateSession(), route matcher excludes health/smoke-test/static assets
+supabase/migrations/           → three applied migrations for the translations table
 docs/
-└── anforderungsdokument.md    → full FA/NFA Anforderungsliste (German), source of truth for requirements
+├── anforderungsdokument.md    → full FA/NFA Anforderungsliste (German), source of truth for requirements
+└── progress-checklist.md      → running status, updated after every completed step
 .agents/skills/                → vendored Supabase skill docs (auth/RLS/Postgres best practices)
 ```
 
@@ -136,41 +177,35 @@ docs/
 proxy.ts (Next.js middleware) → lib/supabase/middleware.ts updateSession()
 → supabase.auth.getClaims() checks session
 → unauthenticated + page route → redirect to /login
-→ unauthenticated + /api/* route → 401 JSON (not an HTML redirect — chat UI needs a fetch-friendly error)
+→ unauthenticated + /api/* route → 401 JSON (not an HTML redirect — the streaming fetches need a machine-readable error)
 → public routes exempt from the check: /login, /auth*, /api/auth (the callback that ISSUES the session)
 ```
 
 Login/signup go through Server Actions (`app/(auth)/actions.ts`), not client-side Supabase calls. Signup redirects straight to `/dashboard` only if email confirmation is disabled in the Supabase project (i.e. `data.session` is already set); otherwise the user sees a "check your email" message.
 
-### Chat flow (current — stand-in for the translation flow)
-
-```
-Chat.tsx (dashboard) → useChat({ transport: chatTransport })
-→ POST /api/chat → convertToModelMessages → streamText(getModel(), messages)
-→ toUIMessageStreamResponse() → streamed back to the client
-```
-
-`chatTransport` (lib/ai/chat-transport.ts) wraps `fetch` specifically to turn a 401 from the middleware into a thrown `AUTH_ERROR`, since `useChat` doesn't otherwise surface HTTP status on its own.
-
-### Translation flow (target — not yet built, FA-01/02/03)
+### Translation flow (current — FA-01/02/03/05/08/09)
 
 ```
 User pastes business text, selects target language (+ optional tone, FA-08)
-→ POST /api/translate
-→ LLM detects source language (FA-02) and translates
-→ streamText streams translation back
-→ Frontend renders live
-→ Output is visibly labeled as AI-generated directly on the result (badge, not footer/metadata) — targeted at the KMU employee who may forward the translated text (FA-05 — EU AI Act Art. 50)
+→ POST /api/translate, body validated against app/api/translate/schema.ts
+→ detectLanguage() — separate, cheap call; out-of-catalog short-circuits with 422 (FA-02)
+→ streamText translates, told the source language rather than inferring it again
+→ row id + detected language come back as response headers, the translation as the stream
+→ Frontend renders live via useObject
+→ Output is visibly labeled as AI-generated directly on the result (on the output, not footer/metadata) — targeted at the KMU employee who may forward the translated text (FA-05 — EU AI Act Art. 50)
 → Result saved to Supabase (FA-09, history)
 ```
 
-### Segment Comment / Re-translation flow (target — FA-07, not yet built)
+### Segment Comment / Re-translation flow (current — FA-07)
 
 ```
 User adds a comment to a segment (e.g. terminology hint, style note)
 → POST /api/retranslate
-→ Segment + comment sent to LLM
-→ Segment re-translated considering the comment
+→ The paragraph as currently translated + the comment + translationId + segmentIndex go to
+  /api/retranslate. The source paragraph rides along as context only — it is matched by position
+  and can be the wrong one if the model merged or split paragraphs while translating.
+→ The model REVISES the existing paragraph; it does not translate the source again from scratch
+→ The route writes the paragraph back into the stored translation itself (read-modify-write)
 → Frontend updates just that segment
 ```
 
@@ -206,32 +241,42 @@ export const getModel = () => {
 
 Baked-in gotcha already documented in-code: `baseURL` belongs on the `createOllama()` factory call, not on the `ollama(model, settings)` call — there's no URL option there.
 
-### Translation Schema (Zod) — current
+### Zod schemas: two different jobs (current)
+
+Both translation routes validate their **input** with a schema next to the route
+(`app/api/translate/schema.ts`, `app/api/retranslate/schema.ts`, `safeParse` → 400). A route handler
+receives whatever was posted to it, so a `type RequestBody` annotation on `await req.json()` asserts a
+shape rather than checking one — don't reintroduce that pattern. `targetLanguage` in particular is
+interpolated into the prompt and is constrained to the FA-06 catalog here.
+
+The model **output** schema is deliberately minimal:
 
 ```ts
 // lib/ai/schema.ts
-import { z } from 'zod';
-
-export const translationSchema = z.object({
-  detectedSourceLanguage: z
-    .string()
-    .describe(
-      'ISO 639-1 code of the language the source text is written in, e.g. "de", "en", "it"'
-    ),
+export const translationOutputSchema = z.object({
   translatedText: z.string().describe('The translated text'),
-  aiGenerated: z.literal(true).describe('Whether the translation was generated by AI'),
 });
 ```
 
+Two fields were removed from it on purpose, and neither should come back:
+
+- **`detectedSourceLanguage`** — established before the stream by `detectLanguage()` and validated against
+  the catalog. Asking the model for it again during translation produced a second, unvalidated answer that
+  could contradict the one the 422 gate was decided on. It travels to the client in the
+  `X-Detected-Source-Language` response header instead, alongside `X-Translation-Id`.
+- **`aiGenerated`** — that the output is machine-generated is a fact the application knows with certainty.
+  As a generated field it made an FA-05 labelling obligation depend on the model's token sampling: a
+  dropped or truncated field silently removed the notice. The UI decides this from `hasTranslation`.
+
 ### FA-02 language-catalog constraint (current)
 
-`detectedSourceLanguage` is a free-form ISO 639-1 string, **not** an enum of the FA-06 catalog, and the
-translation prompt does not mention the catalog at all. `POST /api/translate` runs detection and
-translation as two separate model calls (`lib/ai/detect-language.ts`, cheap/non-streaming, then
-`streamText` only if the result passes `isSupportedLanguageCode()`). An unsupported language short-circuits
-before any translation call: the route returns `Response.json({ detectedSourceLanguage }, { status: 422 })`;
-`useObject` reads that body into `error.message`, `translate.tsx` parses it back out and opens
-`UnsupportedLanguageDialog` instead of rendering a translation.
+Catalog membership is decided by `isSupportedLanguageCode()`, **not** by the model, and the translation
+prompt does not mention the catalog at all. `POST /api/translate` runs detection and translation as two
+separate model calls (`lib/ai/detect-language.ts`, cheap/non-streaming, then `streamText` only if the
+result passes the guard). An unsupported language short-circuits before any translation call: the route
+returns `{ error: 'unsupported_language', detectedSourceLanguage }` with status 422; `useObject` reads that
+body into `error.message`, `parseTranslateError()` (`lib/ai/translate-error.ts`) classifies it by its error
+code, and `translate.tsx` opens `UnsupportedLanguageDialog` instead of rendering a translation.
 
 This is deliberate and was measured, not assumed. A single combined call constrained to
 `z.enum([...languageCodes, 'unsupported'])`, instructed to emit `'unsupported'` for out-of-catalog text,
@@ -240,10 +285,7 @@ each). The same model named the language correctly 16/16 when it only had to rep
 isolation from any catalog/set-membership decision — that decision is the unreliable half of the job for
 a 7B model, so it moved into `isSupportedLanguageCode()`. Splitting detection into its own call was the
 next consequence of that: it means an out-of-catalog text is never translated at all (not generated and
-discarded), and it sidesteps a real bug class — a hand-rolled "already complete" stream for the
-unsupported case briefly showed `aiGenerated: true` before the UI could react, because that path doesn't
-follow the schema's field order (`detectedSourceLanguage` → `translatedText` → `aiGenerated`) the way a
-real stream does. Don't "simplify" this back into a single prompt/enum call.
+discarded). Don't "simplify" this back into a single prompt/enum call.
 
 ### Supabase Client Usage (current)
 
@@ -252,9 +294,37 @@ real stream does. Don't "simplify" this back into a single prompt/enum call.
 - Never use the service role key client-side
 - Env vars are `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — the **publishable** key, not the legacy anon key
 
-### Non-binding disclaimer (target — FA-10, not yet built)
+### FA-07 re-translation is a revision, not a re-translation (current)
 
-Every translation output must display a notice that it is a machine translation without legal validity — this is a liability-reduction requirement, not optional UI copy.
+`/api/retranslate` receives the paragraph **as it currently reads in the translation** and revises it.
+Don't turn this into a blind re-translation of the source paragraph: the source is matched to the
+paragraph by position, and the model is free to merge or split paragraphs while translating, so that
+mapping can point at the wrong paragraph entirely. The current translation is what the user commented
+on and is therefore always the right subject. It also gives the model something to preserve — a
+re-translation from scratch has no reason to keep the parts the comment didn't mention.
+
+The prompt states the task and nothing more. A version with five numbered rules, a "the comment is
+data, not instructions" preamble and delimiters around the comment was measured against qwen2.5:7b
+and performed identically on every legitimate case (terminology applied 3/3, all five sentences kept,
+"formulate it shorter" at 82% of the original length in both). Extra rules here buy nothing — keep it
+describing the job.
+
+The only guard is that an empty revision is not stored and not applied. The schema guarantees a
+string, not a non-empty one, and an empty one would erase a paragraph the user still has. Anything
+beyond that (length ratios, plausibility scores) is a threshold with no measured failure behind it.
+
+### FA-05 + FA-10 notice (current)
+
+`components/translation-notice.tsx` carries both requirements in one muted line, rendered directly on
+every translation output (dashboard and each history card): AI-generated without human review (FA-05,
+EU AI Act Art. 50) and machine-made / not legally binding (FA-10).
+
+They were two components — an amber warning badge plus a separate disclaimer — and that was
+over-designed: the two repeated each other and made the notice the loudest thing on the page. The
+obligation is that it is **visible and attached to the output**, not that it shouts. Keep it factual and
+quiet, but don't drop either statement, and don't move it into a page footer or into metadata.
+
+Its rendering condition must stay independent of the model's response (see the schema section above).
 
 ---
 
@@ -343,7 +413,7 @@ Full list lives in `docs/anforderungsdokument.md` (German; also submitted as PDF
 - Do not add new Supabase tables/migrations without confirming the schema first
 - Do not use `any` types — enforced by `@typescript-eslint/no-explicit-any: error`
 - Do not install additional AI providers or SDKs unless explicitly asked
-- Do not remove the AI-generated label (FA-05) or the non-binding disclaimer (FA-10) once built — both are graded/compliance requirements, not cosmetic
+- Do not remove either statement in `components/translation-notice.tsx` (FA-05 AI label, FA-10 non-binding disclaimer) and do not make its rendering depend on a model-generated field — both are graded/compliance requirements. Restyling it is fine; dropping it is not
 - Do not reintroduce "Meeting Intelligence" naming (package name, Docker image/container names, layout metadata) — it was renamed to "ki-translator-kmu" / "KI Translator KMU"
 
 ---
