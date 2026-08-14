@@ -40,7 +40,9 @@ pnpm demo
 
 Open [http://localhost:3000](http://localhost:3000) and choose **„Als Gast anmelden"** — no registration, no email address.
 
-`pnpm demo` ([`scripts/demo-setup.sh`](scripts/demo-setup.sh)) does everything else:
+Works the same on macOS, Linux and Windows — the setup scripts are plain Node, which `pnpm install` already required.
+
+`pnpm demo` ([`scripts/demo-setup.mjs`](scripts/demo-setup.mjs)) does everything else:
 
 | Step        | What happens                                                                                                                                                                              |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

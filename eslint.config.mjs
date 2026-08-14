@@ -61,6 +61,14 @@ const eslintConfig = defineConfig([
       'prefer-arrow-callback': 'error',
     },
   },
+  // The setup scripts are CLIs whose output IS their interface, so the rule that
+  // keeps stray logging out of the app does not apply to them.
+  {
+    files: ['scripts/**/*.mjs'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
   // shadcn/ui components are vendored/generated via the CLI — not hand-maintained,
   // so they intentionally don't follow this repo's lint rules.
   // supabase/.temp holds bundled runtime code the CLI writes on `supabase start`.
