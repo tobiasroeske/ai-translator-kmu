@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-type CopyToClipboardButtonProps = {
+export type CopyToClipboardButtonProps = {
   text: string;
   className?: string;
 };
