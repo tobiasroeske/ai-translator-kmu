@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from 'react';
 
-import { loginAction, signupAction } from '@/app/(auth)/actions';
+import { guestLoginAction, loginAction, signupAction } from '@/app/(auth)/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,6 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 export default function LoginPage() {
   const [loginState, loginFormAction, isLoginPending] = useActionState(loginAction, null);
   const [signupState, signupFormAction, isSignupPending] = useActionState(signupAction, null);
+  const [guestLoginState, guestLoginFormAction, isGuestLoginPending] = useActionState(
+    guestLoginAction,
+    null
+  );
 
   // Controlled because React resets form fields after every action call (including on
   // error) — keeping the email around saves the user from retyping it on each mistake.
@@ -28,7 +32,7 @@ export default function LoginPage() {
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="login">
+      <TabsContent value="login" className="flex flex-col gap-4">
         <form action={loginFormAction} className="mt-4 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="login-email">E-Mail</Label>
@@ -61,6 +65,16 @@ export default function LoginPage() {
           <Button type="submit" disabled={isLoginPending} className="w-full">
             {isLoginPending ? 'Wird angemeldet...' : 'Einloggen'}
           </Button>
+        </form>
+        <form action={guestLoginFormAction}>
+          <Button type="submit" variant="outline" className="w-full" disabled={isGuestLoginPending}>
+            Als Gast anmelden
+          </Button>
+          {guestLoginState?.error && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              {guestLoginState.error}
+            </div>
+          )}
         </form>
       </TabsContent>
 

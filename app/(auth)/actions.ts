@@ -90,7 +90,7 @@ export const signupAction = async (
   }
 
   return {
-    success: 'Registrierung erfolgreich! Bitte überprüfe deine E-Mails und bestätige dein Konto.',
+    success: 'Registrierung erfolgreich!',
   };
 };
 
@@ -119,4 +119,18 @@ export const logout = async () => {
 
   revalidatePath('/', 'layout');
   redirect('/login');
+};
+
+export const guestLoginAction = async (): Promise<AuthState> => {
+  const supabase = await createClient();
+  const { error, data } = await supabase.auth.signInAnonymously();
+
+  if (data.session) {
+    revalidatePath('/', 'layout');
+    redirect('/dashboard');
+  }
+
+  return {
+    error: error?.message ?? 'Anonymer Login fehlgeschlagen',
+  };
 };
