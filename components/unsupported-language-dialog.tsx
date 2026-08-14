@@ -31,7 +31,7 @@ const UnsupportedLanguageDialog: FC<UnsupportedLanguageDialogProps> = ({
             {detectedLanguage
               ? `Der Text wurde als ${toLanguageName(detectedLanguage)} erkannt. Diese Sprache wird derzeit nicht unterstützt.`
               : 'Die Sprache des Textes wird derzeit nicht unterstützt.'}{' '}
-            Unterstützt werden: {supportedLanguageLabels}.
+            Unterstützt werden: {supportedLanguageLabels.join(', ')}.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

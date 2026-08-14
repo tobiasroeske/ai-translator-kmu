@@ -3,9 +3,9 @@
 import { Loader2, Square } from 'lucide-react';
 
 import TranslationSegment from '@/app/dashboard/translate-segment';
-import CopyToClipboardButton from '@/components/copy-to-clipboard-button';
 import EnumSelect, { type EnumSelectOption } from '@/components/enum-select';
 import { useTranslate } from '@/components/translate-provider';
+import TranslationActions from '@/components/translation-actions';
 import TranslationNotice from '@/components/translation-notice';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -105,7 +105,9 @@ const Translate = () => {
                 </span>
               )}
             </CardTitle>
-            {!isLoading && textToCopy && <CopyToClipboardButton text={textToCopy} />}
+            {!isLoading && textToCopy && (
+              <TranslationActions text={textToCopy} targetLanguage={targetLanguage} />
+            )}
           </CardHeader>
           <CardContent className="flex flex-1 flex-col gap-3">
             {/* Gated on !isLoading, not just segments.length > 0: while a new translation is

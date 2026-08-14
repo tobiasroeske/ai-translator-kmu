@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation';
 
-import CopyToClipboardButton from '@/components/copy-to-clipboard-button';
 import Pagination from '@/components/pagination';
+import TranslationActions from '@/components/translation-actions';
 import TranslationNotice from '@/components/translation-notice';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { toLanguageName } from '@/lib/ai/languages';
+import { isSupportedLanguageCode, toLanguageName } from '@/lib/ai/languages';
 import { isSupportedTone, toneLabels } from '@/lib/ai/tone';
 import { createClient } from '@/lib/supabase/server';
 
@@ -100,7 +100,16 @@ const HistoryPage = async ({ searchParams }: HistoryPageProps) => {
                 </details>
               </CardContent>
               <CardFooter className="flex justify-end">
-                <CopyToClipboardButton text={translation.translated_text} />
+                {/* target_language is a bare string coming out of the DB row — narrowed here
+                    rather than widening TranslationActions back to string, since a value outside
+                    the catalog would mean the row predates FA-06 or was written some other way,
+                    not something the export/filename logic should have to account for. */}
+                {isSupportedLanguageCode(translation.target_language) && (
+                  <TranslationActions
+                    text={translation.translated_text}
+                    targetLanguage={translation.target_language}
+                  />
+                )}
               </CardFooter>
             </Card>
           ))}

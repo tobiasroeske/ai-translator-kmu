@@ -80,10 +80,14 @@ Gemeldetes Fehlverhalten: ein Kommentar zu einem Absatz ("Begriff X anders über
 
 ## Phase C — Kann-Kriterien (FA-12, FA-11)
 
-- [ ] FA-12: `components/copy-button.tsx`, Einbindung in `translate.tsx` + `history/page.tsx`
-- [ ] FA-11: PDF-Library final bestätigt (Empfehlung: `jspdf`)
-- [ ] FA-11: PDF-Export inkl. KI-Label + Disclaimer im Dokument
-- [ ] Abnahme: `pnpm ci:test` grün, manueller Test (Kopieren + PDF-Export)
+- [x] FA-12: `components/copy-to-clipboard-button.tsx` — Icon-Swap (Copy → Check) statt Toast, da Kopieren häufig und folgenlos ist; Timeout wird bei erneutem Klick/Unmount gecleart
+- [x] FA-11: PDF-Library final bestätigt (`jspdf`) — Standard-Fonts decken WinAnsi/Latin-1 ab, reicht für den DE/EN/FR/ES-Katalog (kein PL) ohne Font-Embedding
+- [x] FA-11: `components/download-pdf-button.tsx` — `jspdf` dynamisch importiert (Bundle-Splitting), manueller Zeilenumbruch/Seitenumbruch über `splitTextToSize`, `lib/pdf/filename.ts` (pure, getestet) für den Dateinamen
+- [x] FA-05/FA-10 im PDF: `lib/notice.ts` als gemeinsame Quelle für `TranslationNotice` (Bildschirm) und den PDF-Export — der Hinweistext reist im Dokument selbst mit, nicht nur auf dem Bildschirm
+- [x] `components/translation-actions.tsx` bündelt Copy + PDF-Export für beide Einbindungsstellen (`translate.tsx`, `history/page.tsx`)
+- [x] Typisierung: `targetLanguage` durchgängig `LanguageCode` statt `string` (Filename, Button, Actions). `history/page.tsx` narrowed den rohen DB-String mit `isSupportedLanguageCode()`, analog zum bestehenden `isSupportedTone()`-Muster
+- [x] Docker-Build verifiziert: `pnpm-workspace.yaml`s `allowBuilds` (inkl. `core-js`, Sub-Dependency von `jspdf`) greift auch im `deps`-Stage des Dockerfiles
+- [x] Abnahme: `pnpm ci:test` grün (Lint, Format, Typecheck, 38 Tests), manueller Test (Kopieren + PDF-Export inkl. Umlaute)
 
 ## Offene Entscheidungen (bei Bedarf hier abhaken sobald final)
 

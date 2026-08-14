@@ -4,9 +4,11 @@ export const languageCodes = ['de', 'en', 'fr', 'es'] as const;
 
 export type LanguageCode = (typeof languageCodes)[number];
 
+export type LanguageLabel = 'Deutsch' | 'Englisch' | 'Französisch' | 'Spanisch';
+
 export type Language = {
   code: LanguageCode;
-  label: string;
+  label: LanguageLabel;
 };
 
 export const languages: Language[] = [
@@ -16,7 +18,7 @@ export const languages: Language[] = [
   { code: 'es', label: 'Spanisch' },
 ] as const satisfies Language[];
 
-export const supportedLanguageLabels = languages.map(({ label }) => label).join(', ');
+export const supportedLanguageLabels: LanguageLabel[] = languages.map(({ label }) => label);
 
 // Used inside the prompts, which are written in English. A bare ISO code asks the model to resolve
 // "fr" to a language before it can act on it; the name states it outright.
