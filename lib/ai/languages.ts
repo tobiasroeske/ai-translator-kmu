@@ -18,6 +18,15 @@ export const languages: Language[] = [
 
 export const supportedLanguageLabels = languages.map(({ label }) => label).join(', ');
 
+// Used inside the prompts, which are written in English. A bare ISO code asks the model to resolve
+// "fr" to a language before it can act on it; the name states it outright.
+export const promptLanguageNames: Record<LanguageCode, string> = {
+  de: 'German',
+  en: 'English',
+  fr: 'French',
+  es: 'Spanish',
+} as const satisfies Record<LanguageCode, string>;
+
 // FA-02: catalog membership is decided here, not by the model — a small model can name a
 // language reliably but is not reliable at also deciding set membership (see CLAUDE.md).
 export const isSupportedLanguageCode = createEnumGuard(languageCodes);

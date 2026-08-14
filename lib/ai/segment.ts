@@ -16,3 +16,21 @@ export const segmentText = (sourceText: string): string[] => {
 
   return segments;
 };
+
+// The FA-07 update rule as a single expression: which paragraph of a stored document a
+// re-translation replaces, and what the document reads as afterwards. Kept free of any database
+// access so the rule can be exercised on plain strings; the caller decides what to do with `null`.
+// Returns null when the index addresses a paragraph the document doesn't have — that is a stale
+// or forged request, not an empty result.
+export const replaceSegmentAt = (
+  text: string,
+  index: number,
+  replacement: string
+): string | null => {
+  const segments = segmentText(text);
+
+  if (!Number.isInteger(index) || index < 0 || index >= segments.length) return null;
+
+  segments[index] = replacement;
+  return joinSegments(segments);
+};
