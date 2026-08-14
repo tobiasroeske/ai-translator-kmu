@@ -12,6 +12,7 @@ import { fetchWithAuthError } from '@/lib/ai/auth-fetch';
 import { type LanguageCode } from '@/lib/ai/languages';
 import { translationOutputSchema } from '@/lib/ai/schema';
 import { type Tone } from '@/lib/ai/tone';
+import { cn } from '@/lib/utils';
 
 type TranslationSegmentProps = {
   segmentIndex: number;
@@ -83,69 +84,83 @@ const TranslationSegment = ({
   };
 
   return (
-    <div className="group relative">
-      {/* Live-streamed while a retranslation is in flight, so the same "grow in place" UX as the
-          main translation applies here too — otherwise this segment would look frozen while
-          every other segment already reflects the finished result. */}
-      <p className="whitespace-pre-wrap">
-        {isLoading ? (object?.translatedText ?? translatedSegment) : translatedSegment}
-      </p>
-
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        onClick={() => setIsCommenting((prev) => !prev)}
-        aria-label={isCommenting ? 'Kommentar schließen' : 'Kommentar hinzufügen'}
-        aria-expanded={isCommenting}
-        className="absolute -top-2 -right-2 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-      >
-        <MessageSquarePlus className="h-4 w-4" />
-      </Button>
-
+    <>
       {isCommenting && (
-        <div className="mt-2 flex flex-col gap-2 rounded-md border p-3">
-          <Field>
-            <FieldLabel htmlFor={commentFieldId} className="sr-only">
-              Kommentar zu diesem Absatz
-            </FieldLabel>
-            <Textarea
-              id={commentFieldId}
-              value={comment}
-              onChange={(e) => setComment(e.currentTarget.value)}
-              placeholder="z. B. Fachbegriff X statt Y verwenden ..."
-              disabled={isLoading}
-              className="min-h-16 resize-none text-sm"
-            />
-          </Field>
-          {/* No spinner next to the button while streaming — the paragraph above is visibly
+        <div
+          className="fixed inset-0 z-40 bg-black/50"
+          onClick={() => setIsCommenting(false)}
+          aria-hidden
+        />
+      )}
+
+      <div
+        className={cn(
+          'group relative -mx-3 rounded-md px-3 py-2 transition-colors',
+          isCommenting ? 'z-50 bg-card' : 'hover:bg-muted/50'
+        )}
+      >
+        <div className="flex items-start gap-2">
+          <p className="flex-1 whitespace-pre-wrap">
+            {isLoading ? (object?.translatedText ?? translatedSegment) : translatedSegment}
+          </p>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsCommenting((prev) => !prev)}
+            aria-label={isCommenting ? 'Kommentar schließen' : 'Kommentar hinzufügen'}
+            aria-expanded={isCommenting}
+            className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+          >
+            <MessageSquarePlus className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {isCommenting && (
+          <div className="mt-2 flex flex-col gap-2 rounded-md border p-3">
+            <Field>
+              <FieldLabel htmlFor={commentFieldId} className="sr-only">
+                Kommentar zu diesem Absatz
+              </FieldLabel>
+              <Textarea
+                id={commentFieldId}
+                value={comment}
+                onChange={(e) => setComment(e.currentTarget.value)}
+                placeholder="z. B. Fachbegriff X statt Y verwenden ..."
+                disabled={isLoading}
+                className="min-h-16 resize-none text-sm"
+              />
+            </Field>
+            {/* No spinner next to the button while streaming — the paragraph above is visibly
               growing, which is the better progress signal, and it leaves the primary slot free
               for the escape hatch a stuck generation needs. */}
-          <div className="flex justify-end gap-2">
-            {isLoading ? (
-              <Button type="button" variant="destructive" size="sm" onClick={stop}>
-                <Square className="h-4 w-4" />
-                Stoppen
-              </Button>
-            ) : (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsCommenting(false)}
-                >
-                  Abbrechen
+            <div className="flex justify-end gap-2">
+              {isLoading ? (
+                <Button type="button" variant="destructive" size="sm" onClick={stop}>
+                  <Square className="h-4 w-4" />
+                  Stoppen
                 </Button>
-                <Button type="button" size="sm" onClick={handleSubmit}>
-                  Neu übersetzen
-                </Button>
-              </>
-            )}
+              ) : (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsCommenting(false)}
+                  >
+                    Abbrechen
+                  </Button>
+                  <Button type="button" size="sm" onClick={handleSubmit}>
+                    Neu übersetzen
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 };
 
