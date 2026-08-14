@@ -5,7 +5,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { confirmSignupSchema } from '@/app/(auth)/confirm-signup/schema';
-import { authSchema } from '@/app/(auth)/login/schema';
+import { authSchema, signupSchema } from '@/app/(auth)/login/schema';
 import { createClient } from '@/lib/supabase/server';
 
 export type AuthState = {
@@ -13,6 +13,7 @@ export type AuthState = {
   fieldErrors?: {
     email?: string[];
     password?: string[];
+    confirmPassword?: string[];
   };
   success?: string;
 } | null;
@@ -52,7 +53,7 @@ export const signupAction = async (
   formData: FormData
 ): Promise<AuthState> => {
   const rawData = Object.fromEntries(formData.entries());
-  const validatedData = authSchema.safeParse(rawData);
+  const validatedData = signupSchema.safeParse(rawData);
 
   if (!validatedData.success) {
     return {
@@ -76,6 +77,7 @@ export const signupAction = async (
   });
 
   if (error) {
+    console.error('signupAction error', error);
     return { error: error.message };
   }
 

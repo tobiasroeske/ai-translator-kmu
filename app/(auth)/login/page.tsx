@@ -92,6 +92,15 @@ export default function LoginPage() {
               </p>
             ))}
           </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="register-confirm-password">Passwort bestätigen</Label>
+            <Input id="register-confirm-password" name="confirmPassword" type="password" required />
+            {signupState?.fieldErrors?.confirmPassword?.map((err) => (
+              <p key={err} className="text-sm text-destructive">
+                {err}
+              </p>
+            ))}
+          </div>
 
           {signupState?.error && (
             <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">

@@ -8,3 +8,12 @@ export const authSchema = z.object({
     .regex(/[A-Z]/, 'Das Passwort muss mindestens einen Großbuchstaben enthalten.')
     .regex(/\d/, 'Das Passwort muss mindestens eine Zahl enthalten.'),
 });
+
+export const signupSchema = authSchema
+  .extend({
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Die Passwörter stimmen nicht überein.',
+    path: ['confirmPassword'],
+  });
