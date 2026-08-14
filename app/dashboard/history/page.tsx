@@ -1,8 +1,7 @@
 import { redirect } from 'next/navigation';
 
-import AiGeneratedBadge from '@/components/ai-generated-badge';
 import Pagination from '@/components/pagination';
-import TranslationDisclaimer from '@/components/translation-disclaimer';
+import TranslationNotice from '@/components/translation-notice';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toLanguageName } from '@/lib/ai/languages';
 import { isSupportedTone, toneLabels } from '@/lib/ai/tone';
@@ -75,11 +74,6 @@ const HistoryPage = async ({ searchParams }: HistoryPageProps) => {
         </Card>
       ) : (
         <div className="space-y-4">
-          {/* Once for the whole list rather than per entry: FA-10 qualifies the translations shown
-              on this page, and repeating it under every card would bury it in noise. The FA-05
-              label stays per entry — that one has to sit on the output itself. */}
-          <TranslationDisclaimer />
-
           {translations.map((translation) => (
             <Card key={translation.id}>
               <CardHeader>
@@ -94,7 +88,9 @@ const HistoryPage = async ({ searchParams }: HistoryPageProps) => {
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
                 <p className="text-sm whitespace-pre-wrap">{translation.translated_text}</p>
-                <AiGeneratedBadge />
+                {/* Per entry, not once for the page: the notice qualifies a specific translation,
+                    and each card can be read (or copied out of) on its own. */}
+                <TranslationNotice />
                 <details className="text-sm text-muted-foreground">
                   <summary className="w-fit cursor-pointer select-none hover:text-foreground">
                     Originaltext anzeigen

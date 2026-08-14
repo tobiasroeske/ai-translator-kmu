@@ -1,6 +1,6 @@
 import { type SupabaseClient } from '@supabase/supabase-js';
 
-import { joinSegments, segmentText } from '@/lib/ai/segment';
+import { replaceSegmentAt } from '@/lib/ai/segment';
 import { type Database } from '@/lib/supabase/database.types';
 
 type Client = SupabaseClient<Database>;
@@ -67,19 +67,18 @@ export const replaceTranslationSegment = async (
     return;
   }
 
-  const segments = segmentText(stored.translated_text);
-  if (segmentIndex < 0 || segmentIndex >= segments.length) {
+  const updatedText = replaceSegmentAt(stored.translated_text, segmentIndex, translatedText);
+
+  if (updatedText === null) {
     console.error(
       `Segment index ${segmentIndex} out of range for translation ${translationId} — re-translation not persisted`
     );
     return;
   }
 
-  segments[segmentIndex] = translatedText;
-
   const { data: updated, error: updateError } = await supabase
     .from('translations')
-    .update({ translated_text: joinSegments(segments) })
+    .update({ translated_text: updatedText })
     .eq('id', translationId)
     .select('id');
 

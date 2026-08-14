@@ -3,10 +3,9 @@
 import { Loader2, Square } from 'lucide-react';
 
 import TranslationSegment from '@/app/dashboard/translate-segment';
-import AiGeneratedBadge from '@/components/ai-generated-badge';
 import EnumSelect, { type EnumSelectOption } from '@/components/enum-select';
 import { useTranslate } from '@/components/translate-provider';
-import TranslationDisclaimer from '@/components/translation-disclaimer';
+import TranslationNotice from '@/components/translation-notice';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
@@ -45,6 +44,8 @@ const Translate = () => {
     segments,
     sourceSegments,
     translationId,
+    detectedSourceLanguage,
+    hasTranslation,
     replaceSegment,
     clear,
   } = useTranslate();
@@ -95,9 +96,9 @@ const Translate = () => {
               {isLoading && !object?.translatedText && (
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               )}
-              {object?.detectedSourceLanguage && (
+              {detectedSourceLanguage && (
                 <span className="text-sm font-normal text-muted-foreground">
-                  (erkannt: {toLanguageName(object.detectedSourceLanguage)})
+                  (erkannt: {toLanguageName(detectedSourceLanguage)})
                 </span>
               )}
             </CardTitle>
@@ -109,23 +110,24 @@ const Translate = () => {
                 flash in front of the incoming stream instead of the live blob text below. */}
             {!isLoading && segments.length > 0 ? (
               <div className="min-h-64 flex-1 space-y-3 text-sm">
-                {/* Index as key is safe here: the list is only ever (re)built wholesale when a new
-                    translation finishes — it never reorders/inserts/removes entries out from under
-                    React between renders, only replaces individual strings in place. */}
-                {/* eslint-disable react/no-array-index-key */}
+                {/* The index alone would be a stable key within one translation but not across
+                    two: React would keep each segment's own comment state in place, carrying an
+                    open comment box into the next translation. Pairing it with the translation id
+                    scopes the identity to the document the paragraph belongs to. */}
                 {segments.map((segment, index) => (
                   <TranslationSegment
-                    key={index}
+                    // eslint-disable-next-line react/no-array-index-key
+                    key={`${translationId ?? 'unsaved'}-${index}`}
                     segmentIndex={index}
                     sourceSegment={sourceSegments[index] ?? ''}
                     translatedSegment={segment}
+                    sourceLanguage={detectedSourceLanguage}
                     targetLanguage={targetLanguage}
                     tone={tone}
                     translationId={translationId}
                     onRetranslated={replaceSegment}
                   />
                 ))}
-                {/* eslint-enable react/no-array-index-key */}
               </div>
             ) : object?.translatedText ? (
               <p className="min-h-64 flex-1 text-sm whitespace-pre-wrap">{object.translatedText}</p>
@@ -134,12 +136,7 @@ const Translate = () => {
                 Die Übersetzung erscheint hier.
               </p>
             )}
-            {object?.aiGenerated && (
-              <>
-                <AiGeneratedBadge />
-                <TranslationDisclaimer />
-              </>
-            )}
+            {hasTranslation && <TranslationNotice />}
           </CardContent>
         </Card>
       </div>
