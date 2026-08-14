@@ -36,6 +36,9 @@ yarn-error.log*
 # written by scripts/demo-setup.sh from the local Supabase stack
 .env.development.local
 
+# running task list — working notes, not part of the deliverable
+docs/progress-checklist.md
+
 # vercel
 .vercel
 
