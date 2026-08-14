@@ -21,3 +21,6 @@ coverage
 
 # shadcn/ui — vendored/generated via CLI, not hand-maintained
 components/ui
+
+# written by the Supabase CLI on `supabase start` — bundled runtime code
+supabase/.temp

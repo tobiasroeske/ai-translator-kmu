@@ -63,7 +63,15 @@ const eslintConfig = defineConfig([
   },
   // shadcn/ui components are vendored/generated via the CLI — not hand-maintained,
   // so they intentionally don't follow this repo's lint rules.
-  globalIgnores(['.next/**', 'out/**', 'build/**', 'next-env.d.ts', 'components/ui/**']),
+  // supabase/.temp holds bundled runtime code the CLI writes on `supabase start`.
+  globalIgnores([
+    '.next/**',
+    'out/**',
+    'build/**',
+    'next-env.d.ts',
+    'components/ui/**',
+    'supabase/.temp/**',
+  ]),
 ]);
 
 export default eslintConfig;

@@ -31,10 +31,18 @@ services:
     ports:
       - '${PORT:-3000}:3000'
     # Load all runtime secrets from .env.local — never commit this file.
+    # required: false so the ollama service can be started on its own (the local
+    # demo path) before any .env.local exists — compose validates every service's
+    # env_file at parse time, even for services it is not about to start.
     env_file:
-      - .env.local
+      - path: .env.local
+        required: false
     environment:
       NODE_ENV: production
+      # The pnpm docker:* scripts pin this, so the command that starts the Ollama
+      # container is also the one that uses it. Without the pin, .env.local decided
+      # the provider and `docker:up` could run the model container unused.
+      AI_PROVIDER: ${AI_PROVIDER:-ollama}
       # Inside the container, "localhost" is the container itself — NOT the host.
       # The app reaches the Ollama *container* over the compose network via its
       # service name. This is only consumed when AI_PROVIDER=ollama (the
