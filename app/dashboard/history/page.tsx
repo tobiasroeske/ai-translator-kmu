@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
 
+import CopyToClipboardButton from '@/components/copy-to-clipboard-button';
 import Pagination from '@/components/pagination';
 import TranslationNotice from '@/components/translation-notice';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toLanguageName } from '@/lib/ai/languages';
 import { isSupportedTone, toneLabels } from '@/lib/ai/tone';
 import { createClient } from '@/lib/supabase/server';
@@ -98,6 +99,9 @@ const HistoryPage = async ({ searchParams }: HistoryPageProps) => {
                   <p className="mt-2 whitespace-pre-wrap">{translation.source_text}</p>
                 </details>
               </CardContent>
+              <CardFooter className="flex justify-end">
+                <CopyToClipboardButton text={translation.translated_text} />
+              </CardFooter>
             </Card>
           ))}
 
