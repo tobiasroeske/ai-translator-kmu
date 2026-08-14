@@ -10,18 +10,18 @@ For the full requirements list (FA/NFA) that drives scope decisions, see [`docs/
 
 ## Tech Stack
 
-| Layer              | Technology                                            |
-| ------------------ | ----------------------------------------------------- |
-| Framework          | Next.js 16 (App Router)                               |
-| Language           | TypeScript (strict)                                   |
-| Styling            | Tailwind CSS v4 + shadcn/ui                           |
-| AI Abstraction     | Vercel AI SDK (`ai`)                                  |
-| AI Provider (dev)  | Ollama (`qwen2.5:7b`) — local, no API costs           |
-| AI Provider (prod) | Mistral Small (`mistral-small-latest`, see CLAUDE.md) |
-| Database + Auth    | Supabase (PostgreSQL)                                 |
-| Deployment         | Vercel                                                |
-| Package Manager    | pnpm (pinned via `packageManager`)                    |
-| Node               | pinned via `.nvmrc`                                   |
+| Layer              | Technology                                                 |
+| ------------------ | ---------------------------------------------------------- |
+| Framework          | Next.js 16 (App Router)                                    |
+| Language           | TypeScript (strict)                                        |
+| Styling            | Tailwind CSS v4 + shadcn/ui                                |
+| AI Abstraction     | Vercel AI SDK (`ai`)                                       |
+| AI Provider (dev)  | Ollama (`qwen2.5:7b`) — local, no API costs                |
+| AI Provider (prod) | Mistral Small (`mistral-small-latest`) — EU data residency |
+| Database + Auth    | Supabase (PostgreSQL)                                      |
+| Deployment         | Vercel                                                     |
+| Package Manager    | pnpm (pinned via `packageManager`)                         |
+| Node               | pinned via `.nvmrc`                                        |
 
 ## Prerequisites
 
@@ -111,7 +111,17 @@ The app exposes `GET /api/health` for container healthchecks.
 
 ## Project Structure
 
-See [`CLAUDE.md`](CLAUDE.md) for a detailed breakdown of the folder structure, architecture, and current implementation status against the target design.
+There is no `src/` directory — the `@/*` alias maps to the project root.
+
+| Path                                         | Contents                                                                                                                                                                               |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/(auth)/`                                | Login and signup via Server Actions, plus the email-confirmation pages                                                                                                                 |
+| `app/dashboard/`                             | The translation UI and the paginated history, behind the auth middleware                                                                                                               |
+| `app/api/translate/`, `app/api/retranslate/` | Both stream via `streamText` + `Output.object`, each with its input schema alongside                                                                                                   |
+| `lib/ai/`                                    | Provider switch, output schema, language catalog, tone instructions, segmentation, language detection, error classification — framework-free, and the pure parts are covered by Vitest |
+| `lib/supabase/`                              | Browser and server clients, session middleware, generated types                                                                                                                        |
+| `supabase/migrations/`                       | The `translations` table and its RLS policies                                                                                                                                          |
+| `docs/anforderungsdokument.md`               | The FA/NFA requirements list that drives every scope decision                                                                                                                          |
 
 ## License
 
