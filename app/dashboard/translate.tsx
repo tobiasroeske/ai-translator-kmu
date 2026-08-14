@@ -3,6 +3,7 @@
 import { Loader2, Square } from 'lucide-react';
 
 import TranslationSegment from '@/app/dashboard/translate-segment';
+import CopyToClipboardButton from '@/components/copy-to-clipboard-button';
 import EnumSelect, { type EnumSelectOption } from '@/components/enum-select';
 import { useTranslate } from '@/components/translate-provider';
 import TranslationNotice from '@/components/translation-notice';
@@ -50,6 +51,8 @@ const Translate = () => {
     clear,
   } = useTranslate();
 
+  const textToCopy = object?.translatedText ?? segments.join('\n\n') ?? '';
+
   return (
     <div className="flex flex-col gap-4">
       <div className="grid gap-4 md:grid-cols-2">
@@ -90,7 +93,7 @@ const Translate = () => {
         {/* Rendered unconditionally so the two columns keep the same shape before, during and
             after a translation — a card that appears on submit would shift the layout mid-stream. */}
         <Card className="flex flex-col">
-          <CardHeader>
+          <CardHeader className="flex gap-2 justify-between items-center">
             <CardTitle className="flex items-center gap-2 text-base">
               Übersetzung
               {isLoading && !object?.translatedText && (
@@ -102,6 +105,7 @@ const Translate = () => {
                 </span>
               )}
             </CardTitle>
+            {!isLoading && textToCopy && <CopyToClipboardButton text={textToCopy} />}
           </CardHeader>
           <CardContent className="flex flex-1 flex-col gap-3">
             {/* Gated on !isLoading, not just segments.length > 0: while a new translation is
