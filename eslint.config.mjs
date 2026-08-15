@@ -61,12 +61,13 @@ const eslintConfig = defineConfig([
       'prefer-arrow-callback': 'error',
     },
   },
-  // The setup scripts are CLIs whose output IS their interface, so the rule that
-  // keeps stray logging out of the app does not apply to them.
+  // The setup scripts are plain Node, run directly rather than through the bundler:
+  // their output IS their interface, and the `@/*` alias does not exist for them.
   {
     files: ['scripts/**/*.mjs'],
     rules: {
       'no-console': 'off',
+      'no-restricted-imports': 'off',
     },
   },
   // shadcn/ui components are vendored/generated via the CLI — not hand-maintained,

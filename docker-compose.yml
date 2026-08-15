@@ -22,9 +22,11 @@ services:
       dockerfile: Dockerfile
       # Pass public env vars so Next.js can bake them in at build time.
       # Secret keys (SERVICE_ROLE, API keys) are injected at runtime below.
+      # Defaulted to empty so the file also parses when only the ollama service is
+      # being started and no .env.local exists yet — the demo path does exactly that.
       args:
-        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
-        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}
     image: ki-translator-kmu:latest
     container_name: ki-translator-kmu-app
     restart: unless-stopped
@@ -62,8 +64,13 @@ services:
   # Ollama — Local AI inference (optional profile)
   # Activate with: docker compose --profile ollama up
   #
-  # Models are stored in a named volume so they survive container restarts.
-  # First run will be slow — Ollama pulls the model on first request.
+  # The image runs unmodified: models are pulled over Ollama's HTTP API by
+  # scripts/ollama.mjs, which the pnpm demo and docker:up scripts both call. An
+  # in-container pull script would duplicate that, and shell probes inside this
+  # image are a trap — it ships neither curl nor wget.
+  #
+  # Models live in a named volume, so they are downloaded once and survive
+  # `docker compose down`.
   # ---------------------------------------------------------------------------
   ollama:
     image: ollama/ollama:latest
@@ -75,18 +82,15 @@ services:
       # Expose on localhost only — Ollama should not be publicly reachable.
       - '127.0.0.1:11434:11434'
     volumes:
-      # Persist downloaded models across container rebuilds.
       - ollama_models:/root/.ollama
-      # Auto-pull entrypoint — downloads required models on first start only.
-      - ./scripts/ollama-entrypoint.sh:/entrypoint.sh:ro
-    entrypoint: ['/bin/sh', '/entrypoint.sh']
     healthcheck:
-      test: ['CMD-SHELL', 'curl -sf http://localhost:11434/api/tags || exit 1']
+      # `ollama list` rather than an HTTP probe — no HTTP client in the image.
+      test: ['CMD-SHELL', 'ollama list || exit 1']
       interval: 30s
       timeout: 10s
       retries: 5
-      # Ollama takes a moment to initialize + pull models on first start.
-      start_period: 120s
+      # Serving starts in seconds now that nothing downloads during startup.
+      start_period: 20s
 
 # =============================================================================
 # Volumes

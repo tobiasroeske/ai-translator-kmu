@@ -109,6 +109,9 @@ pnpm docker:ps
 
 The app exposes `GET /api/health` for container healthchecks.
 
+`docker:up` provisions `qwen2.5:7b` before the app container comes up, using the same
+[`scripts/ollama.mjs`](scripts/ollama.mjs) the demo uses — the Ollama image itself runs unmodified.
+
 ## Project Structure
 
 There is no `src/` directory — the `@/*` alias maps to the project root.
