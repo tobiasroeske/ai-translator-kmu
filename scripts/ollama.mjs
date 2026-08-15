@@ -1,9 +1,8 @@
 // Provisioning the demo's language model.
 //
-// Everything runs through Ollama's HTTP API, which behaves the same whether a
-// native install or the compose container is listening on the port. That is what
-// keeps this a single code path: the caller never has to know which of the two it
-// is talking to, and a model already present on the host is never downloaded a
+// Ollama's HTTP API behaves the same whether a native install or the compose
+// container is listening on the port, so the caller never has to know which one it
+// reached. A model already present on the host is therefore never downloaded a
 // second time into a container volume.
 import { setTimeout as sleep } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
@@ -14,9 +13,8 @@ export const MODEL = 'qwen2.5:7b';
 
 const OLLAMA_URL = 'http://localhost:11434';
 const CONTAINER = 'ki-translator-kmu-ollama';
-// A download is bounded by lack of progress, not by total duration: 4.7 GB takes
-// minutes on a fast line and hours on a slow one, so any fixed deadline would
-// either abort a healthy download or mask a stuck one.
+// A download is bounded by lack of progress, not total duration: 4.7 GB takes
+// minutes on a fast line and hours on a slow one.
 const STALL_MS = 10 * 60_000;
 const CONTAINER_READY_MS = 60_000;
 const MIN_REPORTED_BYTES = 100e6;
@@ -82,12 +80,12 @@ const pullModel = async () => {
         const event = JSON.parse(line);
 
         if (event.error) throw new Error(event.error);
-        // Only the weights are worth reporting — the manifest and config blobs are
-        // a few kilobytes and would render as a meaningless "0.0 / 0.0 GB".
+        // Only the weights are worth reporting; the manifest and config blobs are
+        // a few kilobytes and would render as "0.0 / 0.0 GB".
         if (!event.total || event.total < MIN_REPORTED_BYTES) continue;
 
-        // Reported only when the rounded value moves, so a slow line does not
-        // scroll the terminal full of identical lines.
+        // Reported only when the rounded value moves, to keep a slow download from
+        // scrolling the terminal full of identical lines.
         const progress = `${((event.completed ?? 0) / 1e9).toFixed(1)} / ${(event.total / 1e9).toFixed(1)} GB`;
         if (progress !== reported) {
           console.log(`  … ${progress}`);
@@ -120,8 +118,8 @@ export const ensureOllamaModel = async () => {
   console.log(`${MODEL} ist bereit.`);
 };
 
-// Also runnable on its own (`node scripts/ollama.mjs`), which is how pnpm
-// docker:up provisions the model before bringing the app container up.
+// Runnable on its own (`node scripts/ollama.mjs`), which is how pnpm docker:up
+// provisions the model before bringing the app container up.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   requireDocker();
   ensureOllamaModel().catch(fail);

@@ -5,9 +5,10 @@
 // Supabase (auth + database) and Ollama, wired together by a generated env file.
 // Invoked by `pnpm demo`, which starts the dev server afterwards.
 //
-// Only prerequisite: Docker is running. Written in Node rather than shell because
-// pnpm runs scripts through cmd.exe on Windows, where bash is not on PATH after a
-// default Git install, while Node is guaranteed to exist.
+// Only prerequisite: Docker is running.
+//
+// Node, not shell: pnpm runs scripts through cmd.exe on Windows, where bash is not
+// on PATH after a default Git install.
 // =============================================================================
 import { writeFileSync } from 'node:fs';
 

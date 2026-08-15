@@ -61,8 +61,8 @@ const eslintConfig = defineConfig([
       'prefer-arrow-callback': 'error',
     },
   },
-  // The setup scripts are plain Node, run directly rather than through the bundler:
-  // their output IS their interface, and the `@/*` alias does not exist for them.
+  // The setup scripts are plain Node executed directly: their output is their
+  // interface, and the `@/*` alias does not resolve outside the bundler.
   {
     files: ['scripts/**/*.mjs'],
     rules: {

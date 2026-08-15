@@ -9,8 +9,7 @@
 //   pnpm demo:down -- --purge
 //
 // --purge deletes the local database and, when the containerised Ollama was used,
-// its ~4.7 GB model volume. A natively installed Ollama is never touched — the
-// setup script does not manage it and must not delete models it did not download.
+// its ~4.7 GB model volume. A natively installed Ollama is never touched.
 // =============================================================================
 import { rmSync } from 'node:fs';
 
@@ -19,8 +18,8 @@ import { fail, requireDocker, run, supabaseBin } from './shared.mjs';
 const DEMO_ENV_FILE = '.env.development.local';
 const OLLAMA_VOLUME = 'ki-uebersetzer-kmu_ollama_models';
 
-// Scanned rather than read off argv[2]: `pnpm demo:down -- --purge` forwards the
-// `--` itself as the first argument.
+// Scanned across all arguments: `pnpm demo:down -- --purge` forwards the `--`
+// itself as argv[2].
 const purge = process.argv.slice(2).includes('--purge');
 
 const main = () => {
