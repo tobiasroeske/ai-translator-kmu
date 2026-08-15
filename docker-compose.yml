@@ -20,10 +20,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      # Pass public env vars so Next.js can bake them in at build time.
-      # Secret keys (SERVICE_ROLE, API keys) are injected at runtime below.
-      # Defaulted to empty so the file also parses when only the ollama service is
-      # being started and no .env.local exists yet — the demo path does exactly that.
+      # Public env vars Next.js bakes in at build time. Secrets are injected at
+      # runtime below. Empty defaults keep the file parsable when only the ollama
+      # service is started and no .env.local exists.
       args:
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}
@@ -32,18 +31,16 @@ services:
     restart: unless-stopped
     ports:
       - '${PORT:-3000}:3000'
-    # Load all runtime secrets from .env.local — never commit this file.
-    # required: false so the ollama service can be started on its own (the local
-    # demo path) before any .env.local exists — compose validates every service's
-    # env_file at parse time, even for services it is not about to start.
+    # Runtime secrets — never commit this file. Compose validates every service's
+    # env_file at parse time, so required: false is what lets the ollama service
+    # start on its own without a .env.local.
     env_file:
       - path: .env.local
         required: false
     environment:
       NODE_ENV: production
-      # The pnpm docker:* scripts pin this, so the command that starts the Ollama
-      # container is also the one that uses it. Without the pin, .env.local decided
-      # the provider and `docker:up` could run the model container unused.
+      # Pinned by the pnpm docker:* scripts so the provider matches the services
+      # they start, overriding whatever .env.local carries.
       AI_PROVIDER: ${AI_PROVIDER:-ollama}
       # Inside the container, "localhost" is the container itself — NOT the host.
       # The app reaches the Ollama *container* over the compose network via its
@@ -64,13 +61,10 @@ services:
   # Ollama — Local AI inference (optional profile)
   # Activate with: docker compose --profile ollama up
   #
-  # The image runs unmodified: models are pulled over Ollama's HTTP API by
-  # scripts/ollama.mjs, which the pnpm demo and docker:up scripts both call. An
-  # in-container pull script would duplicate that, and shell probes inside this
-  # image are a trap — it ships neither curl nor wget.
+  # Models are pulled over Ollama's HTTP API by scripts/ollama.mjs and live in a
+  # named volume, so they survive `docker compose down`.
   #
-  # Models live in a named volume, so they are downloaded once and survive
-  # `docker compose down`.
+  # The image ships neither curl nor wget — any probe here must use the ollama CLI.
   # ---------------------------------------------------------------------------
   ollama:
     image: ollama/ollama:latest
@@ -84,12 +78,10 @@ services:
     volumes:
       - ollama_models:/root/.ollama
     healthcheck:
-      # `ollama list` rather than an HTTP probe — no HTTP client in the image.
       test: ['CMD-SHELL', 'ollama list || exit 1']
       interval: 30s
       timeout: 10s
       retries: 5
-      # Serving starts in seconds now that nothing downloads during startup.
       start_period: 20s
 
 # =============================================================================

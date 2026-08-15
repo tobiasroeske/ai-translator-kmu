@@ -29,7 +29,7 @@ For the full requirements list (FA/NFA) that drives scope decisions, see [`docs/
 - pnpm (version pinned in `package.json#packageManager` — `corepack enable` will pick it up automatically)
 - [Docker](https://www.docker.com/products/docker-desktop/), running
 
-That is the whole list. No accounts, no API keys, no Supabase project — see below.
+No accounts, API keys or Supabase project required.
 
 ## Quick Start (evaluation / demo)
 
@@ -40,7 +40,7 @@ pnpm demo
 
 Open [http://localhost:3000](http://localhost:3000) and choose **„Als Gast anmelden"** — no registration, no email address.
 
-Works the same on macOS, Linux and Windows — the setup scripts are plain Node, which `pnpm install` already required.
+Runs on macOS, Linux and Windows.
 
 `pnpm demo` ([`scripts/demo-setup.mjs`](scripts/demo-setup.mjs)) does everything else:
 
@@ -50,9 +50,7 @@ Works the same on macOS, Linux and Windows — the setup scripts are plain Node,
 | Credentials | The local stack's URL and publishable key are written to `.env.development.local` — generated, gitignored, never committed.                                                               |
 | AI          | Uses a natively installed Ollama when one is running; otherwise starts the Ollama container. Either way `qwen2.5:7b` is pulled if missing (~4.7 GB on first run — that is the slow part). |
 
-Guest login works out of the box because `enable_anonymous_sign_ins = true` in [`supabase/config.toml`](supabase/config.toml), which configures the local stack.
-
-Everything runs on your machine: the model is local, the database is local, and no request leaves the host.
+The model and the database are local — no request leaves your machine.
 
 Tear it down again with:
 
@@ -109,8 +107,7 @@ pnpm docker:ps
 
 The app exposes `GET /api/health` for container healthchecks.
 
-`docker:up` provisions `qwen2.5:7b` before the app container comes up, using the same
-[`scripts/ollama.mjs`](scripts/ollama.mjs) the demo uses — the Ollama image itself runs unmodified.
+`docker:up` pulls `qwen2.5:7b` before starting the app container.
 
 ## Project Structure
 
