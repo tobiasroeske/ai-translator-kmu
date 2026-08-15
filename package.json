@@ -17,10 +17,10 @@
     "demo": "node scripts/demo-setup.mjs && next dev",
     "demo:down": "node scripts/demo-down.mjs",
     "docker:build": "docker compose --env-file .env.local build",
-    "docker:up": "AI_PROVIDER=ollama docker compose --env-file .env.local --profile ollama up -d",
+    "docker:up": "node scripts/ollama.mjs && AI_PROVIDER=ollama docker compose --env-file .env.local --profile ollama up -d",
     "docker:up:prod": "AI_PROVIDER=mistral docker compose --env-file .env.local up -d",
     "docker:down": "docker compose down",
-    "docker:restart": "AI_PROVIDER=ollama docker compose --env-file .env.local --profile ollama up -d --build",
+    "docker:restart": "node scripts/ollama.mjs && AI_PROVIDER=ollama docker compose --env-file .env.local --profile ollama up -d --build",
     "docker:logs": "docker compose logs -f",
     "docker:ps": "docker compose ps"
   },
