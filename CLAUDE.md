@@ -46,9 +46,16 @@ Ollama. What exists and is safe to build on:
 `streamText`/`generateText` with `output: Output.object({ schema })`. `app/api/translate/route.ts` is the
 reference implementation.
 
-Still open: FA-11 (PDF export) and FA-12 (copy to clipboard) — Phase C, neither started. `AI_PROVIDER=mistral`
-is implemented but has never been run (no API key); `MAX_SOURCE_TEXT_LENGTH` is calibrated to qwen2.5:7b's
-4096-token window and should be revisited when it is.
+Phase C is also done: FA-11 (PDF export, `components/download-pdf-button.tsx`) and FA-12 (copy to
+clipboard, `components/copy-to-clipboard-button.tsx`), both bundled in `components/translation-actions.tsx`.
+`MAX_SOURCE_TEXT_LENGTH` is calibrated to qwen2.5:7b's 4096-token window and should be revisited if the
+active model changes.
+
+Phase 3 (Finalisierung) work in progress: a Vitest suite covering prompt construction, input validation,
+error classification and the FA-05 notice component (`lib/ai/*.test.ts`, `components/translation-notice.test.tsx`),
+plus two non-deterministic validation scripts (`pnpm validate:language-detection`, `pnpm validate:tone`) that
+measure FA-02 detection accuracy and FA-08 tone adherence against the live model and write a Markdown report
+to `docs/` — see the "Model validation" section in `README.md` for usage.
 
 ---
 
@@ -96,11 +103,13 @@ pnpm docker:logs
 pnpm docker:ps
 ```
 
-`pnpm test` runs Vitest (`vitest run`) over `lib/**/*.test.ts` — pure logic only: segment assembly, the
-FA-02 catalog guard, error classification. No jsdom, no React rendering, no mocked model. It is part of
-`pnpm ci:test`, which is the gate to run before every commit.
+`pnpm test` runs Vitest (`vitest run`) over `lib/**/*.test.ts`, `app/api/**/*.test.ts` and
+`components/**/*.test.tsx`. The default environment is Node, no DOM, no mocked model — pure logic:
+segment assembly, the FA-02 catalog guard, error classification, prompt construction. A component test
+opts into jsdom per file via a `// @vitest-environment jsdom` docblock; `components/translation-notice.test.tsx`
+is the only one so far. `pnpm test` is part of `pnpm ci:test`, which is the gate to run before every commit.
 
-Anything that streams, renders or talks to Supabase is verified by running the app, not by mocking it. When
+Anything that streams or talks to Supabase is still verified by running the app, not by mocking it. When
 adding logic that decides something, put it in `lib/` as a pure function so it can be covered there.
 
 ---
@@ -134,6 +143,9 @@ app/
 components/
 ├── translate-provider.tsx    → form state + stream state + context, "use client"
 ├── translation-notice.tsx    → FA-05 + FA-10 notice shown on every translation output
+├── translation-actions.tsx   → bundles copy + PDF export for a rendered translation
+├── copy-to-clipboard-button.tsx → FA-12
+├── download-pdf-button.tsx   → FA-11
 ├── unsupported-language-dialog.tsx
 ├── enum-select.tsx           → typed wrapper around the shadcn Select
 ├── pagination.tsx
@@ -147,18 +159,27 @@ lib/
 │   ├── middleware.ts         → updateSession(), called from proxy.ts
 │   └── database.types.ts     → generated Supabase types
 ├── ai/
-│   ├── provider.ts           → getModel(): AI_PROVIDER switch (ollama | mistral)
+│   ├── provider.ts           → getModel(): AI_PROVIDER switch (ollama | mistral), shared MODEL_TEMPERATURE
+│   ├── prompts.ts            → translate/retranslate prompt construction, pure functions
 │   ├── schema.ts             → translationOutputSchema (model output)
+│   ├── response-meta.ts      → parses the translation id / detected-language response headers
 │   ├── languages.ts          → FA-06 catalog, guard, display + prompt names
 │   ├── tone.ts               → FA-08 tones and their prompt instructions
+│   ├── tone-markers.ts       → register classifier (Sie/du etc.) used by the tone validation script
 │   ├── limits.ts             → length bounds + output token budget
 │   ├── segment.ts            → paragraph split/join/replace (FA-07)
 │   ├── detect-language.ts    → separate, cheap detection call (FA-02)
 │   ├── translate-error.ts    → error codes + client-side classification
 │   ├── auth-fetch.ts         → fetch wrapper surfacing a 401 as AUTH_ERROR
-│   └── *.test.ts             → Vitest, pure logic only
+│   └── *.test.ts             → Vitest
+├── pdf/                      → FA-11 PDF generation + filename logic (filename.ts is pure, tested)
 ├── translations/history.ts   → the two Supabase writes (insert, segment update)
 └── utils.ts                  → cn(), createEnumGuard()
+scripts/
+├── validate-language-detection.mjs → FA-02 accuracy vs. the live model, writes a report to docs/
+├── validate-tone.mjs         → FA-08 tone adherence vs. the live model, writes a report to docs/
+├── validation-shared.mjs     → shared CLI/report plumbing for the two scripts above
+└── demo-setup.mjs / demo-down.mjs / ollama.mjs / shared.mjs → pnpm demo pipeline
 proxy.ts                       → Next.js middleware entry, delegates to updateSession(), route matcher excludes health/smoke-test/static assets
 supabase/migrations/           → three applied migrations for the translations table
 docs/
