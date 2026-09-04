@@ -2,9 +2,14 @@ import { createMistral } from '@ai-sdk/mistral';
 import { createOllama } from 'ai-sdk-ollama';
 
 const DEFAULT_MODEL = 'qwen2.5:7b' as const;
-// Exported so scripts/validate-language-detection.mjs can report which model version it measured
-// against without hardcoding a second copy of the name.
+// Exported so the validation scripts can report which model version they measured against without
+// hardcoding a second copy of the name.
 export const DEFAULT_MISTRAL_MODEL = 'mistral-small-latest' as const;
+
+// Translation and language detection each have one right answer, not many, so sampling stays low.
+// Shared rather than repeated per call site: the validation scripts report the temperature they
+// measured at, and that figure is only meaningful if it is the same one the routes run with.
+export const MODEL_TEMPERATURE = 0.2;
 
 // baseURL belongs on the provider factory (createOllama), not on the
 // model call ollama(model, settings) — there is no URL option there.

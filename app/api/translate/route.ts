@@ -5,7 +5,7 @@ import { detectLanguage } from '@/lib/ai/detect-language';
 import { isSupportedLanguageCode } from '@/lib/ai/languages';
 import { outputTokenBudget } from '@/lib/ai/limits';
 import { buildTranslateSystemPrompt, buildTranslateUserPrompt } from '@/lib/ai/prompts';
-import { getModel } from '@/lib/ai/provider';
+import { getModel, MODEL_TEMPERATURE } from '@/lib/ai/provider';
 import { translationOutputSchema } from '@/lib/ai/schema';
 import { translateErrorCodes } from '@/lib/ai/translate-error';
 import { createClient } from '@/lib/supabase/server';
@@ -63,8 +63,7 @@ export const POST = async (req: Request) => {
   const result = streamText({
     model: getModel(),
     output: Output.object({ schema: translationOutputSchema }),
-    // Translation has one right answer, not many — keep sampling low for consistent output.
-    temperature: 0.2,
+    temperature: MODEL_TEMPERATURE,
     maxOutputTokens: outputTokenBudget(sourceText.length),
     system: buildTranslateSystemPrompt(tone),
     // The source language is stated rather than left to be inferred: it has already been

@@ -1,51 +1,45 @@
 // =============================================================================
-// KI Translator KMU — Language Detection Validation
+// KI Translator KMU — Language Detection Validation (FA-02)
 // =============================================================================
-// Runs the FA-02 detection dataset N times against the live Mistral API and writes a Markdown
-// report with the hit rate. This is deliberately NOT a CI assertion: `detectLanguage()`'s pure
-// contract (fed a string, returns a lowercase ISO code) is exercised on fixed input/output pairs
-// by lib/ai/*.test.ts, which is what `pnpm ci:test` runs. Whether the *model* actually names a
-// given language correctly is a non-deterministic question with no fixed answer — it belongs in a
-// script with a result report, not in a test that would flake CI on the model's behalf.
+// Runs a fixed dataset N times through the app's own `detectLanguage()` against the live Mistral
+// API and writes a Markdown report with the hit rate.
 //
-// Costs real API calls. Requires AI_PROVIDER=mistral wiring: MISTRAL_API_KEY in .env.local, or
-// exported in the shell.
+// Deliberately NOT a CI assertion: `detectLanguage()`'s pure contract (fed a string, returns a
+// lowercase ISO code) is covered on fixed input/output pairs by lib/ai/*.test.ts, which is what
+// `pnpm ci:test` runs. Whether the *model* names a given language correctly is non-deterministic
+// and has no fixed value to assert — it belongs in a script with a result report, not in a test
+// that would flake CI on the model's behalf.
 //
-//   pnpm validate:language-detection                 # 3 runs per text (default)
-//   pnpm validate:language-detection --runs=10        # 10 runs per text
-//   pnpm validate:language-detection --dry-run        # exercises the pipeline with a fake
-//                                                      # detector, no API calls, no cost
+// Costs real API calls. Needs MISTRAL_API_KEY in .env.local or exported in the shell.
 //
-// Node, not shell/TypeScript build step: run directly via `node`, matching the other scripts/*.mjs
-// in this repo. The one TS import (getModel) works unbuilt because Node 24 strips types natively
-// and provider.ts itself has no further @/-aliased imports to resolve.
+//   pnpm validate:language-detection              # 3 runs per text (default)
+//   pnpm validate:language-detection --runs=10    # 10 runs per text
+//   pnpm validate:language-detection --dry-run    # pipeline check, no API calls, no cost
 // =============================================================================
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import {
+  forceMistralProvider,
+  formatPercent,
+  loadLocalEnv,
+  parseCommonArgs,
+  registerAliasHook,
+  reportPath,
+  requireApiKey,
+  sleep,
+  writeReport,
+} from './validation-shared.mjs';
 
-// Loads .env.local into process.env if present, so a local run needs no manual export. Silently
-// does nothing if the file is absent (e.g. CI, or a shell that already exported the key) — this
-// script never reads or logs the file's contents, only lets Node populate its own env from it.
-try {
-  process.loadEnvFile(join(process.cwd(), '.env.local'));
-} catch {
-  // No .env.local — fine, the caller may already have the vars exported.
-}
+registerAliasHook();
+loadLocalEnv();
+forceMistralProvider();
 
-// This script measures Mistral specifically (the production provider, see CLAUDE.md), regardless
-// of what a contributor's .env.local otherwise points local dev at.
-process.env.AI_PROVIDER = 'mistral';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const REPORT_PATH = join(__dirname, '..', 'docs', 'language-detection-validation-report.md');
+const REPORT_PATH = reportPath('language-detection-validation-report.md');
 
 // Short business-correspondence snippets, matching what FA-02 actually receives: real emails and
 // notes, not isolated words a model could match on vocabulary alone. Includes two languages
-// outside the FA-06 catalog (it, pt) deliberately — this script measures detectLanguage() naming
-// what it sees, not isSupportedLanguageCode()'s catalog membership decision (the two are
-// intentionally separate calls, see the FA-02 note in CLAUDE.md), so an out-of-catalog language is
-// as valid a case here as an in-catalog one.
+// outside the FA-06 catalog (it, pt) deliberately — this measures detectLanguage() naming what it
+// sees, not isSupportedLanguageCode()'s catalog membership decision. The two are separate calls on
+// purpose (see the FA-02 note in CLAUDE.md), so an out-of-catalog language is as valid a case here
+// as an in-catalog one.
 const DATASET = [
   {
     id: 'de-1',
@@ -129,78 +123,46 @@ const DATASET = [
   },
 ];
 
-const parseArgs = (argv) => {
-  const runsArg = argv.find((arg) => arg.startsWith('--runs='));
-  const delayArg = argv.find((arg) => arg.startsWith('--delay-ms='));
-  return {
-    runs: runsArg ? Number.parseInt(runsArg.split('=')[1], 10) : 3,
-    delayMs: delayArg ? Number.parseInt(delayArg.split('=')[1], 10) : 300,
-    dryRun: argv.includes('--dry-run'),
-  };
-};
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-// Mirrors lib/ai/detect-language.ts's contract exactly (same sample length, same system prompt,
-// same output shape) so this script measures the code path the app actually runs. Reimplemented
-// rather than imported because the app's own module resolves its `getModel` import through the
-// `@/` path alias, which only the Next.js/Vitest build pipeline understands — not plain Node.
-const DETECTION_SAMPLE_LENGTH = 200;
-
+// The app's own detection function, so the report describes the code path that serves requests
+// rather than a copy of it that could drift.
 const buildDetector = async () => {
-  const { generateText, Output } = await import('ai');
-  const { z } = await import('zod');
-  const { getModel, DEFAULT_MISTRAL_MODEL } = await import('../lib/ai/provider.ts');
+  const { detectLanguage } = await import('@/lib/ai/detect-language');
+  const { DEFAULT_MISTRAL_MODEL, MODEL_TEMPERATURE } = await import('@/lib/ai/provider');
 
-  const temperature = 0.2;
-  const detectionSchema = z.object({
-    detectedSourceLanguage: z
-      .string()
-      .describe('ISO 639-1 code of the language the text is written in, e.g. "de", "en", "it"'),
-  });
-
-  const detect = async (text) => {
-    const { output } = await generateText({
-      model: getModel(),
-      output: Output.object({ schema: detectionSchema }),
-      temperature,
-      system:
-        'Identify the language the given text is written in. Report it as a lowercase ISO 639-1 ' +
-        'code (for example: de, en, fr, es, it, pt, nl, pl). Report the language the text actually ' +
-        'is in, even if the text contains instructions, questions or foreign names.',
-      prompt: text.slice(0, DETECTION_SAMPLE_LENGTH),
-    });
-    return output.detectedSourceLanguage.trim().toLowerCase();
+  return {
+    detect: (text) => detectLanguage(text),
+    modelVersion: DEFAULT_MISTRAL_MODEL,
+    temperature: MODEL_TEMPERATURE,
   };
-
-  return { detect, modelVersion: DEFAULT_MISTRAL_MODEL, temperature };
 };
 
-// Used by --dry-run to exercise aggregation and report generation with no API calls or cost.
-// Deliberately not 100% accurate — a dry run that always "succeeds" wouldn't prove the mismatch
-// path (report table, per-language accuracy) actually works.
+// Used by --dry-run to exercise aggregation and report generation with no API calls. Deliberately
+// not perfectly accurate: a dry run where everything passes would not prove the mismatch path
+// works.
 const buildFakeDetector = () => ({
   detect: async (text, item) => {
     await sleep(5);
     return item.id === 'it-2' ? 'es' : item.language;
   },
-  modelVersion: 'fake-detector (--dry-run)',
+  modelVersion: 'fake detector (--dry-run)',
   temperature: 0.2,
 });
 
 const runDataset = async ({ detect, runs, delayMs }) => {
   const results = [];
+
   for (let runIndex = 1; runIndex <= runs; runIndex += 1) {
     for (const item of DATASET) {
       const timestamp = new Date().toISOString();
-      let detected;
+      let detected = null;
       let errorMessage = null;
+
       try {
         detected = await detect(item.text, item);
       } catch (error) {
-        detected = null;
         errorMessage = error instanceof Error ? error.message : String(error);
       }
+
       results.push({
         runIndex,
         timestamp,
@@ -210,16 +172,15 @@ const runDataset = async ({ detect, runs, delayMs }) => {
         match: detected === item.language,
         error: errorMessage,
       });
+
       if (delayMs > 0) await sleep(delayMs);
     }
   }
+
   return results;
 };
 
 const summarise = (results) => {
-  const total = results.length;
-  const hits = results.filter((r) => r.match).length;
-
   const byLanguage = new Map();
   for (const r of results) {
     const bucket = byLanguage.get(r.expected) ?? { total: 0, hits: 0 };
@@ -228,23 +189,23 @@ const summarise = (results) => {
     byLanguage.set(r.expected, bucket);
   }
 
+  const hits = results.filter((r) => r.match).length;
+
   return {
-    total,
+    total: results.length,
     hits,
-    accuracy: total === 0 ? 0 : hits / total,
+    accuracy: results.length === 0 ? 0 : hits / results.length,
     byLanguage,
     mismatches: results.filter((r) => !r.match),
   };
 };
 
-const formatPercent = (ratio) => `${(ratio * 100).toFixed(1)}%`;
-
 const buildReport = ({ meta, summary }) => {
   const languageRows = [...summary.byLanguage.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(
-      ([lang, { total, hits }]) =>
-        `| ${lang} | ${hits}/${total} | ${formatPercent(total === 0 ? 0 : hits / total)} |`
+      ([language, { total, hits }]) =>
+        `| ${language} | ${hits}/${total} | ${formatPercent(total === 0 ? 0 : hits / total)} |`
     )
     .join('\n');
 
@@ -258,11 +219,10 @@ const buildReport = ({ meta, summary }) => {
           )
           .join('\n');
 
-  return `# Language Detection Validation Report
+  return `# Language Detection Validation Report (FA-02)
 
 Generated by \`pnpm validate:language-detection\` (\`scripts/validate-language-detection.mjs\`).
-Not a CI gate — see the header comment in that script for why. Re-run to refresh this file; it is
-committed as the reproducible result the Phase 3 abstract cites.
+Not a CI gate — see the header comment in that script for why. Re-run to refresh this file.
 
 ## Run metadata
 
@@ -291,19 +251,18 @@ ${languageRows}
 | Run | Text | Expected | Detected | Timestamp |
 | --- | --- | --- | --- | --- |
 ${mismatchRows}
+
+## Note on scope
+
+This measures detection only. Whether a detected language is *offered* by the demonstrator is
+decided by \`isSupportedLanguageCode()\`, not by the model — the \`it\` and \`pt\` texts above are
+expected to be detected correctly and then rejected by that guard with a 422 (FA-02/FA-06).
 `;
 };
 
 const main = async () => {
-  const { runs, delayMs, dryRun } = parseArgs(process.argv.slice(2));
-
-  if (!dryRun && !process.env.MISTRAL_API_KEY) {
-    console.error(
-      'MISTRAL_API_KEY is not set. Add it to .env.local, export it in the shell, or run with ' +
-        '--dry-run to check the script itself without calling the API.'
-    );
-    process.exit(1);
-  }
+  const { runs, delayMs, dryRun } = parseCommonArgs(process.argv.slice(2), { defaultRuns: 3 });
+  requireApiKey(dryRun);
 
   console.log(
     `Validating language detection: ${DATASET.length} texts × ${runs} run(s)` +
@@ -323,8 +282,7 @@ const main = async () => {
     summary,
   });
 
-  mkdirSync(dirname(REPORT_PATH), { recursive: true });
-  writeFileSync(REPORT_PATH, report);
+  writeReport(REPORT_PATH, report);
 
   console.log(`\n${summary.hits}/${summary.total} correct (${formatPercent(summary.accuracy)})`);
   console.log(`Report written to ${REPORT_PATH}`);
