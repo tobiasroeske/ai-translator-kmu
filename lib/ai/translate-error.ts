@@ -19,6 +19,7 @@ export type TranslateErrorBody = {
 export type TranslateError =
   | { kind: 'unsupported-language'; detectedSourceLanguage: string }
   | { kind: 'auth' }
+  | { kind: 'provider-unavailable' }
   | { kind: 'generic' };
 
 // useObject puts the raw response body into error.message, which is only JSON for the errors the
@@ -35,6 +36,11 @@ export const parseTranslateError = (error: Error | undefined): TranslateError | 
       typeof body.detectedSourceLanguage === 'string'
     ) {
       return { kind: 'unsupported-language', detectedSourceLanguage: body.detectedSourceLanguage };
+    }
+    // Whichever provider is configured (see lib/ai/provider.ts) — the client has no way to know
+    // which without the message assuming one, so the copy for this case must stay provider-neutral.
+    if (body.error === translateErrorCodes.providerUnavailable) {
+      return { kind: 'provider-unavailable' };
     }
   } catch {
     // Body isn't JSON — nothing to extract, fall through to the generic case.

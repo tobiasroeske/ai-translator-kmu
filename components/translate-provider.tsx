@@ -92,7 +92,14 @@ const useTranslationStream = ({ sourceText, targetLanguage, tone, isTooLong }: T
         return;
       }
 
-      toast.error('Die Übersetzung ist fehlgeschlagen. Läuft Ollama?');
+      if (parsed.kind === 'provider-unavailable') {
+        toast.error(
+          'Der Übersetzungsdienst ist gerade nicht erreichbar. Bitte versuche es später erneut.'
+        );
+        return;
+      }
+
+      toast.error('Die Übersetzung ist fehlgeschlagen. Bitte versuche es erneut.');
     },
   });
 
