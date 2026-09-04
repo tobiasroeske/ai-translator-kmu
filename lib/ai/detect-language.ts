@@ -1,7 +1,7 @@
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 
-import { getModel } from '@/lib/ai/provider';
+import { getModel, MODEL_TEMPERATURE } from '@/lib/ai/provider';
 
 const detectionSchema = z.object({
   detectedSourceLanguage: z
@@ -23,7 +23,7 @@ export const detectLanguage = async (sourceText: string) => {
   const { output } = await generateText({
     model: getModel(),
     output: Output.object({ schema: detectionSchema }),
-    temperature: 0.2,
+    temperature: MODEL_TEMPERATURE,
     system:
       'Identify the language the given text is written in. Report it as a lowercase ISO 639-1 ' +
       'code (for example: de, en, fr, es, it, pt, nl, pl). Report the language the text actually ' +

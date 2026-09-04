@@ -3,7 +3,7 @@ import { createTextStreamResponse, Output, streamText, toTextStream } from 'ai';
 import { retranslateRequestSchema } from '@/app/api/retranslate/schema';
 import { outputTokenBudget } from '@/lib/ai/limits';
 import { buildRetranslateSystemPrompt, buildRetranslateUserPrompt } from '@/lib/ai/prompts';
-import { getModel } from '@/lib/ai/provider';
+import { getModel, MODEL_TEMPERATURE } from '@/lib/ai/provider';
 import { translationOutputSchema } from '@/lib/ai/schema';
 import { translateErrorCodes } from '@/lib/ai/translate-error';
 import { createClient } from '@/lib/supabase/server';
@@ -37,8 +37,7 @@ export const POST = async (req: Request) => {
   const result = streamText({
     model: getModel(),
     output: Output.object({ schema: translationOutputSchema }),
-    // Same rationale as /api/translate: one right answer per request, not creative variation.
-    temperature: 0.2,
+    temperature: MODEL_TEMPERATURE,
     maxOutputTokens: outputTokenBudget(currentTranslation.length),
     // The model revises the paragraph as it currently reads instead of translating the source
     // again. The source is matched to this paragraph by position and can be the wrong one, and a
