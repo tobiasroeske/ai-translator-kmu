@@ -61,6 +61,12 @@ pnpm demo:down -- --purge  # also delete the local database and the container's 
 
 A natively installed Ollama is never touched by either command.
 
+## Live Demo (optional)
+
+In addition to the local setup described above, a hosted version is available: [AI Translator Tool](https://ai-translator-kmu.vercel.app/login)
+
+Operates with rate limiting; the primary proof of reproducibility remains `pnpm demo`.
+
 ## Development against a hosted Supabase project
 
 For work against the real project rather than the local stack:
