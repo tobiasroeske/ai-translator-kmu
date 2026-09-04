@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "ci:test": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test",
+    "validate:language-detection": "node scripts/validate-language-detection.mjs",
     "demo": "node scripts/demo-setup.mjs && next dev",
     "demo:down": "node scripts/demo-down.mjs",
     "docker:build": "docker compose --env-file .env.local build",

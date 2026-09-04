@@ -2,7 +2,9 @@ import { createMistral } from '@ai-sdk/mistral';
 import { createOllama } from 'ai-sdk-ollama';
 
 const DEFAULT_MODEL = 'qwen2.5:7b' as const;
-const DEFAULT_MISTRAL_MODEL = 'mistral-small-latest' as const;
+// Exported so scripts/validate-language-detection.mjs can report which model version it measured
+// against without hardcoding a second copy of the name.
+export const DEFAULT_MISTRAL_MODEL = 'mistral-small-latest' as const;
 
 // baseURL belongs on the provider factory (createOllama), not on the
 // model call ollama(model, settings) — there is no URL option there.
