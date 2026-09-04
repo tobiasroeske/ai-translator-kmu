@@ -7,9 +7,8 @@ import { defineConfig } from 'vitest/config';
 // accepts as input, prompt construction). Streaming and Supabase access are still verified by
 // running the app, not by mocking a model or a database.
 //
-// A `.test.tsx` file opts into jsdom via a `// @vitest-environment jsdom` docblock at its top
-// instead of switching the whole suite — component tests are the exception, not the default, and
-// stay opt-in per file.
+// A component test opts into jsdom with a `// @vitest-environment jsdom` docblock at the top of
+// the file, so the DOM stays the exception rather than the default for the suite.
 export default defineConfig({
   resolve: {
     alias: {

@@ -2,30 +2,21 @@
 // KI Translator KMU — Tone Validation (FA-08)
 // =============================================================================
 // Translates a fixed dataset at each tone against the live Mistral API and checks whether the
-// output actually carries the register the tone instruction asked for. Writes a Markdown report.
+// output carries the register the tone instruction asked for. Writes a Markdown report, whose
+// Method and Limitations sections state what the figures do and do not cover.
 //
-// What this can and cannot measure — the reason it is shaped this way:
+// Scored: the form of address (Sie / vous / usted), and for English the contraction ban — the one
+// claim per tone that lib/ai/tone-markers.ts can verify. Not scored: whether the text reads as
+// formal beyond that, which is a human judgment, and `neutral`, whose instruction prescribes no
+// form of address.
 //
-//   Checkable:     lib/ai/tone.ts makes one falsifiable claim per tone — the form of address
-//                  ("Sie" / "vous" / "usted" vs "du" / "tu" / "tú"), and for English, which has no
-//                  T–V distinction, the absence of contractions. lib/ai/tone-markers.ts reads that
-//                  off the output, and its own correctness is covered by Vitest.
-//   Not checkable: whether the text *reads* as formal beyond the form of address — word choice,
-//                  idiom, how a greeting lands with a business partner. That is a human judgment,
-//                  and an LLM-as-judge would only answer a non-deterministic question with another
-//                  non-deterministic one. This script does not pretend to measure it.
-//   No expectation for `neutral`: its instruction deliberately does not prescribe a form of
-//                  address, so the report describes what the model chose rather than scoring it.
-//
-// Separate from the detection script because it measures a different requirement, costs far more
-// per run (full translations, not one-word answers) and produces its own report.
-//
-//   pnpm validate:tone                  # 2 runs per case (default)
-//   pnpm validate:tone --runs=5         # 5 runs per case
-//   pnpm validate:tone --dry-run        # pipeline check with canned output, no API calls
+//   pnpm validate:tone                        # 2 runs per case against Mistral
+//   pnpm validate:tone --runs=5               # 5 runs per case
+//   pnpm validate:tone --provider=ollama      # same run against the local model
+//   pnpm validate:tone --dry-run              # pipeline check with canned output, no API calls
 // =============================================================================
 import {
-  forceMistralProvider,
+  applyProvider,
   formatPercent,
   loadLocalEnv,
   parseCommonArgs,
@@ -38,13 +29,11 @@ import {
 
 registerAliasHook();
 loadLocalEnv();
-forceMistralProvider();
 
 const REPORT_PATH = reportPath('tone-validation-report.md');
 
-// Every source text addresses the reader directly. A text that addresses nobody ("Die Lieferung
-// erfolgt am Montag") cannot carry a form of address in any translation, so it would produce
-// nothing to measure no matter how well the tone instruction worked.
+// Every source text addresses the reader directly. A text that addresses nobody cannot carry a
+// form of address in any translation, so it would leave nothing to measure.
 const DATASET = [
   {
     id: 'de-1',
@@ -74,20 +63,19 @@ const DATASET = [
 
 const TONES = ['formal', 'informal', 'neutral'];
 
-// What each tone's instruction claims about the form of address. `neutral` maps to null because
-// its instruction makes no such claim — see the header.
+// What each tone's instruction claims about the form of address; `neutral` makes no such claim.
 const EXPECTED_REGISTER = { formal: 'formal', informal: 'informal', neutral: null };
 
 const buildTranslator = async () => {
   const { generateText, Output } = await import('ai');
   const { buildTranslateSystemPrompt, buildTranslateUserPrompt } = await import('@/lib/ai/prompts');
-  const { getModel, MODEL_TEMPERATURE, DEFAULT_MISTRAL_MODEL } = await import('@/lib/ai/provider');
+  const { getModel, MODEL_TEMPERATURE } = await import('@/lib/ai/provider');
   const { translationOutputSchema } = await import('@/lib/ai/schema');
   const { outputTokenBudget } = await import('@/lib/ai/limits');
 
-  // The app's own prompt builders and schema, so this measures the prompt that actually serves
-  // requests. generateText rather than streamText only changes how the text is delivered, not how
-  // it is sampled — there is nothing to stream to here.
+  // The app's own prompt builders and schema, so this measures the prompt that serves requests.
+  // generateText rather than streamText: there is nothing to stream to here, and it changes only
+  // how the text is delivered, not how it is sampled.
   const translate = async ({ text, sourceLanguage, targetLanguage, tone }) => {
     const { output } = await generateText({
       model: getModel(),
@@ -104,12 +92,12 @@ const buildTranslator = async () => {
     return output.translatedText;
   };
 
-  return { translate, modelVersion: DEFAULT_MISTRAL_MODEL, temperature: MODEL_TEMPERATURE };
+  return { translate, modelVersion: getModel().modelId, temperature: MODEL_TEMPERATURE };
 };
 
-// Canned output for --dry-run, so the aggregation and report can be checked without spending on
-// API calls. The French informal case deliberately returns a vouvoiement text: a dry run where
-// everything passes would not prove the deviation path works.
+// Canned output for --dry-run, so aggregation and report generation can be checked without
+// spending on API calls. The French informal case returns a vouvoiement text to exercise the
+// deviation path.
 const DRY_RUN_OUTPUT = {
   en: {
     formal: 'Dear Ms Berger, could you please confirm whether you have received the drawings?',
@@ -188,9 +176,8 @@ const runDataset = async ({ translate, classifyRegister, runs, delayMs }) => {
   return results;
 };
 
-// Formal and informal are scored against their instruction's claim; neutral is only described.
-// "opposite" is a real failure, "ambiguous" means the output carried no form of address at all —
-// worth separating, because the two say different things about the prompt.
+// "opposite" and "ambiguous" are counted apart: a text in the wrong register is a failure, one
+// with no form of address at all is not.
 const summariseTone = (results, tone) => {
   const forTone = results.filter((r) => r.tone === tone);
   const expected = EXPECTED_REGISTER[tone];
@@ -270,7 +257,7 @@ refresh this file.
 | Field | Value |
 | --- | --- |
 | Date | ${meta.date} |
-| Provider | Mistral (\`AI_PROVIDER=mistral\`) |
+| Provider | \`AI_PROVIDER=${meta.provider}\` |
 | Model | ${meta.modelVersion} |
 | Temperature | ${meta.temperature} |
 | Runs per case | ${meta.runs} |
@@ -333,15 +320,18 @@ ${deviationRows}
 };
 
 const main = async () => {
-  const { runs, delayMs, dryRun } = parseCommonArgs(process.argv.slice(2), { defaultRuns: 2 });
-  requireApiKey(dryRun);
+  const { runs, delayMs, dryRun, provider } = parseCommonArgs(process.argv.slice(2), {
+    defaultRuns: 2,
+  });
+  applyProvider(provider);
+  requireApiKey(provider, dryRun);
 
   const { classifyRegister } = await import('@/lib/ai/tone-markers');
 
   const casesPerRun = DATASET.reduce((sum, item) => sum + item.targets.length, 0) * TONES.length;
   console.log(
     `Validating tone: ${casesPerRun} case(s) × ${runs} run(s)` +
-      (dryRun ? ' [dry run — no API calls]' : ' against Mistral') +
+      (dryRun ? ' [dry run — no API calls]' : ` against ${provider}`) +
       '.'
   );
 
@@ -353,7 +343,14 @@ const main = async () => {
   const toneSummaries = TONES.map((tone) => summariseTone(results, tone));
 
   const report = buildReport({
-    meta: { date: new Date().toISOString(), modelVersion, temperature, runs, casesPerRun },
+    meta: {
+      date: new Date().toISOString(),
+      provider,
+      modelVersion,
+      temperature,
+      runs,
+      casesPerRun,
+    },
     results,
     toneSummaries,
     byLanguage: summariseByLanguage(results),

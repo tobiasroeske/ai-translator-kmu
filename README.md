@@ -92,10 +92,25 @@ pnpm format:check     # Prettier --check
 pnpm typecheck        # tsc --noEmit
 pnpm test             # Vitest — pure logic in lib/**/*.test.ts
 pnpm ci:test          # lint + format:check + typecheck + test — run before every commit
+
+pnpm validate:language-detection   # FA-02 detection accuracy against the live model
+pnpm validate:tone                 # FA-08 tone adherence against the live model
 ```
 
 `pnpm test` covers the pure logic in `lib/` (segment assembly, the language-catalog guard, error
-classification). Anything that streams, renders, or talks to Supabase is verified by running the app.
+classification, prompt construction) plus the FA-05 notice component. Anything that streams or talks
+to Supabase is verified by running the app.
+
+### Model validation
+
+The two `validate:*` scripts measure model behaviour, which has no fixed expected value to assert,
+so they run outside `pnpm test` and write a Markdown report to `docs/` instead of passing or
+failing. Both default to Mistral (the production provider) and need `MISTRAL_API_KEY`; `--dry-run`
+checks the pipeline without calling an API.
+
+Because the provider is an abstraction (`lib/ai/provider.ts`), the same datasets run against the
+local Ollama model with `--provider=ollama` — useful for comparing the two, though the reports in
+`docs/` are recorded against Mistral.
 
 ## Docker
 

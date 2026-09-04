@@ -5,10 +5,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import TranslationNotice from '@/components/translation-notice';
 import { NOTICE_TEXT } from '@/lib/notice';
 
-// FA-05 (EU AI Act Art. 50) requires the AI-generated label directly on the output, not just in
-// metadata — this only checks that the notice text actually renders. Where it renders (dashboard,
-// history cards) and that its display doesn't depend on a model-generated field is the
-// `hasTranslation` gate in translate-provider.tsx, not this component.
+// FA-05 (EU AI Act Art. 50) requires the AI-generated label on the output itself. This covers the
+// notice rendering; whether it is shown is the `hasTranslation` gate in translate-provider.tsx.
 describe('TranslationNotice', () => {
   afterEach(cleanup);
 
