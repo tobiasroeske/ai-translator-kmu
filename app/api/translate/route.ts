@@ -2,11 +2,11 @@ import { createTextStreamResponse, Output, streamText, toTextStream } from 'ai';
 
 import { translateRequestSchema } from '@/app/api/translate/schema';
 import { detectLanguage } from '@/lib/ai/detect-language';
-import { isSupportedLanguageCode, promptLanguageNames } from '@/lib/ai/languages';
+import { isSupportedLanguageCode } from '@/lib/ai/languages';
 import { outputTokenBudget } from '@/lib/ai/limits';
+import { buildTranslateSystemPrompt, buildTranslateUserPrompt } from '@/lib/ai/prompts';
 import { getModel } from '@/lib/ai/provider';
 import { translationOutputSchema } from '@/lib/ai/schema';
-import { toneInstructions } from '@/lib/ai/tone';
 import { translateErrorCodes } from '@/lib/ai/translate-error';
 import { createClient } from '@/lib/supabase/server';
 import { saveTranslation } from '@/lib/translations/history';
@@ -66,21 +66,11 @@ export const POST = async (req: Request) => {
     // Translation has one right answer, not many — keep sampling low for consistent output.
     temperature: 0.2,
     maxOutputTokens: outputTokenBudget(sourceText.length),
-    system:
-      'You are a professional business translator.\n\n' +
-      'Rules:\n' +
-      `1. Tone: ${toneInstructions[tone]}\n` +
-      '2. Translate the ENTIRE source text. Translate every paragraph, from the first line to the ' +
-      'last, and keep the paragraph breaks of the source text. Never stop after the greeting or ' +
-      'after only part of the text.\n\n' +
-      'Output ONLY the translation itself — no explanations, no comments, no alternate ' +
-      'translations, no additional languages, no meta-commentary of any kind.',
+    system: buildTranslateSystemPrompt(tone),
     // The source language is stated rather than left to be inferred: it has already been
     // established and validated against the FA-06 catalog, so spending the model's attention on it
     // again would only risk a different answer.
-    prompt:
-      `Translate the following ${promptLanguageNames[detectedSourceLanguage]} text to ` +
-      `${promptLanguageNames[targetLanguage]}.\n\nText:\n${sourceText}`,
+    prompt: buildTranslateUserPrompt({ sourceText, detectedSourceLanguage, targetLanguage }),
     onError: ({ error }) => console.error(error),
     // result.output rejects when the model output doesn't match the schema (e.g. a truncated
     // response), which would otherwise become an unhandled rejection.

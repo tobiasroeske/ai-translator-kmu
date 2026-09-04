@@ -5,8 +5,9 @@ import { createContext, type ReactNode, useCallback, useContext, useState } from
 import { toast } from 'sonner';
 
 import { fetchWithAuthError } from '@/lib/ai/auth-fetch';
-import { isSupportedLanguageCode, type LanguageCode } from '@/lib/ai/languages';
+import { type LanguageCode } from '@/lib/ai/languages';
 import { MAX_SOURCE_TEXT_LENGTH } from '@/lib/ai/limits';
+import { parseTranslationMeta, type TranslationMeta } from '@/lib/ai/response-meta';
 import { translationOutputSchema } from '@/lib/ai/schema';
 import { segmentText } from '@/lib/ai/segment';
 import { type Tone } from '@/lib/ai/tone';
@@ -36,11 +37,6 @@ type TranslateForm = ReturnType<typeof useTranslateForm>;
 // over in response headers: the id of the history row it was saved as (needed to update a single
 // paragraph later, FA-07) and the source language it was validated against. Both are null while
 // no request has completed — a re-translation then simply isn't persisted rather than failing.
-type TranslationMeta = {
-  id: string | null;
-  detectedSourceLanguage: LanguageCode | null;
-};
-
 const emptyMeta: TranslationMeta = { id: null, detectedSourceLanguage: null };
 
 // The translation itself: the running request, the resulting document, and the history row it was
@@ -62,14 +58,7 @@ const useTranslationStream = ({ sourceText, targetLanguage, tone, isTooLong }: T
     // exposes the streamed body, not the response itself.
     fetch: async (input, init) => {
       const response = await fetchWithAuthError(input, init);
-      // Re-checked rather than trusted: the route only streams for a catalog language, but a
-      // header is a string until something narrows it, and the value is passed on to
-      // /api/retranslate as a typed field.
-      const detected = response.headers.get('X-Detected-Source-Language');
-      setMeta({
-        id: response.headers.get('X-Translation-Id'),
-        detectedSourceLanguage: isSupportedLanguageCode(detected) ? detected : null,
-      });
+      setMeta(parseTranslationMeta(response.headers));
       return response;
     },
     // Fires once per completed stream, so reacting to a finished translation needs no effect and

@@ -44,4 +44,26 @@ describe('parseTranslateError', () => {
     expect(parseTranslateError(new Error('{"unrelated":true}'))).toEqual({ kind: 'generic' });
     expect(parseTranslateError(new Error('null'))).toEqual({ kind: 'generic' });
   });
+
+  // provider_unavailable (the route's 502 when detectLanguage itself throws, e.g. Ollama/Mistral
+  // unreachable) has no dedicated UI treatment — translate-provider.tsx shows the same "is Ollama
+  // running?" toast for it as for anything else that isn't the unsupported-language or auth case.
+  it('classifies a provider-unavailable response as generic, same as any other API failure', () => {
+    const body = JSON.stringify({ error: 'provider_unavailable' });
+    expect(parseTranslateError(new Error(body))).toEqual({ kind: 'generic' });
+  });
+
+  // A request that times out or is rate-limited never reaches the route's own error bodies —
+  // fetch throws (AbortError) or the platform/gateway returns a body this app didn't write.
+  // Both must land in the same safe fallback as any other unrecognised failure, not surface their
+  // raw text to the user.
+  it('falls back to generic for a fetch timeout', () => {
+    const timeout = new DOMException('The operation was aborted.', 'AbortError');
+    expect(parseTranslateError(timeout)).toEqual({ kind: 'generic' });
+  });
+
+  it('falls back to generic for a rate-limit response with an unrecognised body', () => {
+    const rateLimited = new Error('{"message":"Too Many Requests","statusCode":429}');
+    expect(parseTranslateError(rateLimited)).toEqual({ kind: 'generic' });
+  });
 });
