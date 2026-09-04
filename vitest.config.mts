@@ -2,10 +2,14 @@ import { fileURLToPath } from 'node:url';
 
 import { defineConfig } from 'vitest/config';
 
-// Only pure logic is covered — no jsdom, no React rendering. What is worth testing here are the
-// rules that decide something (segment assembly, catalog membership, error classification, what a
-// route accepts as input); the parts that stream, render or talk to Supabase are verified by
-// running the app, not by mocking a model.
+// Pure logic runs under Node — no jsdom, no DOM — which is what most of this suite is: rules that
+// decide something (segment assembly, catalog membership, error classification, what a route
+// accepts as input, prompt construction). Streaming and Supabase access are still verified by
+// running the app, not by mocking a model or a database.
+//
+// A `.test.tsx` file opts into jsdom via a `// @vitest-environment jsdom` docblock at its top
+// instead of switching the whole suite — component tests are the exception, not the default, and
+// stay opt-in per file.
 export default defineConfig({
   resolve: {
     alias: {
@@ -13,7 +17,7 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['lib/**/*.test.ts', 'app/api/**/*.test.ts'],
+    include: ['lib/**/*.test.ts', 'app/api/**/*.test.ts', 'components/**/*.test.tsx'],
     environment: 'node',
   },
 });
