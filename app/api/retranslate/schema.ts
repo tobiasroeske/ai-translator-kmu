@@ -10,14 +10,10 @@ import { tones } from '@/lib/ai/tone';
 // while the UI's own limit only ever guarded the full-text route.
 export const retranslateRequestSchema = z.object({
   // The paragraph as it currently reads in the translation, and the anchor of the whole request:
-  // it is by definition the text the user is looking at and commenting on.
+  // it is by definition the text the user is looking at and commenting on. The source paragraph it
+  // came from is not part of this contract — see buildRetranslateUserPrompt for why it cannot be
+  // paired with a translated paragraph reliably enough to put in front of the model.
   currentTranslation: z.string().trim().min(1).max(MAX_SEGMENT_TEXT_LENGTH),
-  // The original paragraph it came from — context for the revision, not its subject. Allowed to be
-  // empty because mapping a translated paragraph back to its source is positional, and the model
-  // is free to merge or split paragraphs while translating. A revision must still work when that
-  // mapping is off rather than silently revising against the wrong paragraph.
-  segmentText: z.string().trim().max(MAX_SEGMENT_TEXT_LENGTH),
-  sourceLanguage: z.enum(languageCodes).nullable(),
   comment: z.string().trim().max(MAX_COMMENT_LENGTH),
   targetLanguage: z.enum(languageCodes),
   tone: z.enum(tones),

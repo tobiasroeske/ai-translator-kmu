@@ -5,8 +5,6 @@ import { MAX_COMMENT_LENGTH, MAX_SEGMENT_TEXT_LENGTH } from '@/lib/ai/limits';
 
 const valid = {
   currentTranslation: 'We confirm the delivery date.',
-  segmentText: 'Wir bestätigen den Liefertermin.',
-  sourceLanguage: 'de',
   comment: 'Fachbegriff "Liefertermin" beibehalten.',
   targetLanguage: 'en',
   tone: 'formal',
@@ -29,17 +27,6 @@ describe('retranslateRequestSchema', () => {
     ).toBe(false);
   });
 
-  // Mapping a translated paragraph back to its source is positional and can drift, so a missing
-  // source must not block the revision — it is context, not the subject of the request.
-  it('accepts a missing source segment and an unknown source language', () => {
-    const parsed = retranslateRequestSchema.safeParse({
-      ...valid,
-      segmentText: '',
-      sourceLanguage: null,
-    });
-    expect(parsed.success).toBe(true);
-  });
-
   it('accepts a null translation id — the revision runs, it just is not persisted', () => {
     expect(retranslateRequestSchema.safeParse({ ...valid, translationId: null }).success).toBe(
       true
@@ -56,24 +43,15 @@ describe('retranslateRequestSchema', () => {
     );
   });
 
-  it('rejects a source language outside the FA-06 catalog', () => {
-    expect(retranslateRequestSchema.safeParse({ ...valid, sourceLanguage: 'it' }).success).toBe(
-      false
-    );
-  });
-
-  // This route had no length bound at all: the UI limit only ever guarded the full-text route,
-  // so a direct caller could hand the model an arbitrarily large prompt through either field.
-  it('bounds the current translation, the segment text and the comment', () => {
+  // The UI limit only ever guarded the full-text route, so without a bound here a direct caller
+  // could hand the model an arbitrarily large prompt through either field.
+  it('bounds the current translation and the comment', () => {
     const overSegment = 'a'.repeat(MAX_SEGMENT_TEXT_LENGTH + 1);
     const overComment = 'a'.repeat(MAX_COMMENT_LENGTH + 1);
 
     expect(
       retranslateRequestSchema.safeParse({ ...valid, currentTranslation: overSegment }).success
     ).toBe(false);
-    expect(retranslateRequestSchema.safeParse({ ...valid, segmentText: overSegment }).success).toBe(
-      false
-    );
     expect(retranslateRequestSchema.safeParse({ ...valid, comment: overComment }).success).toBe(
       false
     );

@@ -44,11 +44,12 @@ const emptyMeta: TranslationMeta = { id: null, detectedSourceLanguage: null };
 // lib/translations/history.ts), so nothing here describes what the database should contain.
 const useTranslationStream = ({ sourceText, targetLanguage, tone, isTooLong }: TranslateForm) => {
   // `segments` is the document the user sees, and FA-07 replaces individual paragraphs in it, so it
-  // outlives the raw translated text it was derived from. `sourceSegments` is captured at submit
-  // time to stay index-aligned with it even if the source field is edited afterwards — a shifted
-  // index would send the wrong paragraph to /api/retranslate.
+  // outlives the raw translated text it was derived from. The source text is not segmented in
+  // parallel: paragraphs of the source and of the translation can only be paired by position, and
+  // the model is free to merge or split paragraphs while translating, so such a pairing is a guess
+  // that nothing downstream could tell apart from a fact. Re-translation therefore works from the
+  // translated paragraph alone (see lib/ai/prompts.ts).
   const [segments, setSegments] = useState<string[]>([]);
-  const [sourceSegments, setSourceSegments] = useState<string[]>([]);
   const [meta, setMeta] = useState<TranslationMeta>(emptyMeta);
 
   const { object, submit, isLoading, error, stop, clear } = useObject({
@@ -107,7 +108,6 @@ const useTranslationStream = ({ sourceText, targetLanguage, tone, isTooLong }: T
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    setSourceSegments(segmentText(sourceText));
     submit({ sourceText, targetLanguage, tone });
   };
 
@@ -120,7 +120,6 @@ const useTranslationStream = ({ sourceText, targetLanguage, tone, isTooLong }: T
   const reset = () => {
     clear();
     setSegments([]);
-    setSourceSegments([]);
     setMeta(emptyMeta);
   };
 
@@ -134,7 +133,6 @@ const useTranslationStream = ({ sourceText, targetLanguage, tone, isTooLong }: T
     stop,
     clear: reset,
     segments,
-    sourceSegments,
     translationId: meta.id,
     detectedSourceLanguage: meta.detectedSourceLanguage,
     replaceSegment,

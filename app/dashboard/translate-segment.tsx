@@ -16,9 +16,7 @@ import { cn } from '@/lib/utils';
 
 type TranslationSegmentProps = {
   segmentIndex: number;
-  sourceSegment: string;
   translatedSegment: string;
-  sourceLanguage: LanguageCode | null;
   targetLanguage: LanguageCode;
   tone: Tone;
   translationId: string | null;
@@ -27,9 +25,7 @@ type TranslationSegmentProps = {
 
 const TranslationSegment = ({
   segmentIndex,
-  sourceSegment,
   translatedSegment,
-  sourceLanguage,
   targetLanguage,
   tone,
   translationId,
@@ -66,15 +62,11 @@ const TranslationSegment = ({
   const handleSubmit = () => {
     if (isLoading) return;
     // currentTranslation is what the user is commenting on, so it is what gets revised.
-    // sourceSegment is matched to this paragraph by position and can be the wrong one when the
-    // model merges or splits paragraphs, so it travels as context only, never as the subject.
     //
     // translationId and segmentIndex are what the route needs to store the result itself: the
     // client reports which paragraph it revised, not what the saved document should become.
     submit({
       currentTranslation: translatedSegment,
-      segmentText: sourceSegment,
-      sourceLanguage,
       comment,
       targetLanguage,
       tone,

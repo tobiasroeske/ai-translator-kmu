@@ -35,16 +35,19 @@ export const buildRetranslateSystemPrompt = (tone: Tone) =>
   'refers to. Output the paragraph itself, nothing else: no explanations, no alternative ' +
   'versions, no meta-commentary.';
 
+// The revision works from the current translation and the comment alone. The source paragraph is
+// deliberately not an input: nothing can pair it with a translated paragraph reliably. The pairing
+// is positional, and the model is free to merge or split paragraphs while translating, so the
+// source it points at can belong to a different paragraph — and a mismatched source does not merely
+// go unused, it pulls the model into re-translating that other paragraph instead of revising the
+// text on screen. The current translation is by definition the text the user commented on, which
+// makes it the one input that is always the right one.
 export const buildRetranslateUserPrompt = ({
   currentTranslation,
-  segmentText,
-  sourceLanguage,
   comment,
   targetLanguage,
 }: {
   currentTranslation: string;
-  segmentText: string;
-  sourceLanguage: LanguageCode | null;
   comment: string;
   targetLanguage: LanguageCode;
 }) => {
@@ -53,14 +56,7 @@ export const buildRetranslateUserPrompt = ({
   // in the prompt would otherwise read as a dangling label with nothing after it.
   const commentInstruction = comment ? comment : 'Improve the phrasing using your best judgment.';
 
-  // Only shown when the original paragraph could be identified. Omitted rather than guessed: an
-  // unrelated Source paragraph would pull the revision away from the text being revised.
-  const sourceSection = segmentText
-    ? `Source${sourceLanguage ? ` (${promptLanguageNames[sourceLanguage]})` : ''}:\n${segmentText}\n\n`
-    : '';
-
   return (
-    sourceSection +
     `Current translation (${promptLanguageNames[targetLanguage]}):\n${currentTranslation}\n\n` +
     `Comment:\n${commentInstruction}\n\n` +
     `Revise the translation into ${promptLanguageNames[targetLanguage]}.`

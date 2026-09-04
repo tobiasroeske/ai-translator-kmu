@@ -43,7 +43,6 @@ const Translate = () => {
     unsupportedLanguage,
     stop,
     segments,
-    sourceSegments,
     translationId,
     detectedSourceLanguage,
     hasTranslation,
@@ -125,9 +124,7 @@ const Translate = () => {
                     // eslint-disable-next-line react/no-array-index-key
                     key={`${translationId ?? 'unsaved'}-${index}`}
                     segmentIndex={index}
-                    sourceSegment={sourceSegments[index] ?? ''}
                     translatedSegment={segment}
-                    sourceLanguage={detectedSourceLanguage}
                     targetLanguage={targetLanguage}
                     tone={tone}
                     translationId={translationId}

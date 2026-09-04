@@ -19,16 +19,8 @@ export const POST = async (req: Request) => {
     return Response.json({ error: translateErrorCodes.invalidRequest }, { status: 400 });
   }
 
-  const {
-    currentTranslation,
-    segmentText,
-    sourceLanguage,
-    comment,
-    targetLanguage,
-    tone,
-    translationId,
-    segmentIndex,
-  } = parsed.data;
+  const { currentTranslation, comment, targetLanguage, tone, translationId, segmentIndex } =
+    parsed.data;
 
   // Created before streaming starts: it reads the request cookies, which onFinish can no longer
   // reach once the response is on its way.
@@ -39,18 +31,11 @@ export const POST = async (req: Request) => {
     output: Output.object({ schema: translationOutputSchema }),
     temperature: MODEL_TEMPERATURE,
     maxOutputTokens: outputTokenBudget(currentTranslation.length),
-    // The model revises the paragraph as it currently reads instead of translating the source
-    // again. The source is matched to this paragraph by position and can be the wrong one, and a
-    // blind re-translation has no reason to preserve what the comment didn't mention — anchoring
-    // on the current translation makes the comment the edit instruction it already is.
+    // The model revises the paragraph as it currently reads instead of translating anything again:
+    // a blind re-translation has no reason to preserve what the comment didn't mention, while
+    // anchoring on the current translation makes the comment the edit instruction it already is.
     system: buildRetranslateSystemPrompt(tone),
-    prompt: buildRetranslateUserPrompt({
-      currentTranslation,
-      segmentText,
-      sourceLanguage,
-      comment,
-      targetLanguage,
-    }),
+    prompt: buildRetranslateUserPrompt({ currentTranslation, comment, targetLanguage }),
     onError: ({ error }) => console.error(error),
     // Same shape as /api/translate: whoever generates the text is also the one who stores it, so
     // the client never has to describe what the persisted document should look like.
