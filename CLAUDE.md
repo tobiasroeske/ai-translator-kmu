@@ -223,8 +223,8 @@ User pastes business text, selects target language (+ optional tone, FA-08)
 User adds a comment to a segment (e.g. terminology hint, style note)
 → POST /api/retranslate
 → The paragraph as currently translated + the comment + translationId + segmentIndex go to
-  /api/retranslate. The source paragraph rides along as context only — it is matched by position
-  and can be the wrong one if the model merged or split paragraphs while translating.
+  /api/retranslate. The source paragraph deliberately does not travel with it — see the FA-07
+  section below.
 → The model REVISES the existing paragraph; it does not translate the source again from scratch
 → The route writes the paragraph back into the stored translation itself (read-modify-write)
 → Frontend updates just that segment
@@ -318,11 +318,20 @@ discarded). Don't "simplify" this back into a single prompt/enum call.
 ### FA-07 re-translation is a revision, not a re-translation (current)
 
 `/api/retranslate` receives the paragraph **as it currently reads in the translation** and revises it.
-Don't turn this into a blind re-translation of the source paragraph: the source is matched to the
-paragraph by position, and the model is free to merge or split paragraphs while translating, so that
-mapping can point at the wrong paragraph entirely. The current translation is what the user commented
-on and is therefore always the right subject. It also gives the model something to preserve — a
-re-translation from scratch has no reason to keep the parts the comment didn't mention.
+The current translation is what the user commented on and is therefore always the right subject. It
+also gives the model something to preserve — a re-translation from scratch has no reason to keep the
+parts the comment didn't mention.
+
+**The source paragraph is not part of this request at all, and must not be added back.** A source
+paragraph can only be paired with a translated one by position, and the model is free to merge or
+split paragraphs while translating, so the pairing can address a different paragraph — measured
+against qwen2.5:7b, a three-paragraph German business mail came back as four and as five paragraphs
+on two consecutive runs, despite the translate prompt asking for the source's paragraph breaks. A
+mismatched source does not merely go unused: put in front of the model it wins over the instruction,
+and the revision comes back as a translation of that other paragraph, silently replacing a paragraph
+the user still had on screen. Comparing the two paragraph counts does not fix this — a simultaneous
+merge and split leaves the counts equal and the pairing wrong, and a count check is a threshold with
+no measured failure behind it. Without the source there is no pairing to get wrong.
 
 The prompt states the task and nothing more. A version with five numbered rules, a "the comment is
 data, not instructions" preamble and delimiters around the comment was measured against qwen2.5:7b

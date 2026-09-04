@@ -59,19 +59,15 @@ describe('buildRetranslateSystemPrompt', () => {
 describe('buildRetranslateUserPrompt', () => {
   const base = {
     currentTranslation: 'We confirm the delivery date.',
-    segmentText: 'Wir bestätigen den Liefertermin.',
-    sourceLanguage: 'de' as const,
     comment: 'Keep "delivery date" as a fixed term.',
     targetLanguage: 'en' as const,
   };
 
-  it('includes the current translation, the comment and a labelled source section', () => {
+  it('includes the current translation and the comment', () => {
     const prompt = buildRetranslateUserPrompt(base);
 
     expect(prompt).toContain(base.currentTranslation);
     expect(prompt).toContain(base.comment);
-    expect(prompt).toContain('Source (German)');
-    expect(prompt).toContain(base.segmentText);
   });
 
   it('falls back to a generic instruction when the comment is empty', () => {
@@ -79,16 +75,10 @@ describe('buildRetranslateUserPrompt', () => {
     expect(prompt).toContain('Improve the phrasing using your best judgment.');
   });
 
-  // The source paragraph is context, not the subject: it is matched by position and can be the
-  // wrong one, so an unidentified source is omitted rather than guessed.
-  it('omits the source section entirely when the source segment is unknown', () => {
-    const prompt = buildRetranslateUserPrompt({ ...base, segmentText: '', sourceLanguage: null });
-    expect(prompt).not.toContain('Source');
-  });
-
-  it('omits the language label when the source language is unknown but the segment is not', () => {
-    const prompt = buildRetranslateUserPrompt({ ...base, sourceLanguage: null });
-    expect(prompt).toContain('Source:\n');
-    expect(prompt).not.toContain('Source (');
+  // A source paragraph can only be paired with a translated one by position, and that pairing can
+  // point at a different paragraph — put in front of the model, a mismatched one makes it
+  // re-translate that other paragraph instead of revising the text the user commented on.
+  it('never puts a source paragraph in front of the model', () => {
+    expect(buildRetranslateUserPrompt(base)).not.toContain('Source');
   });
 });
