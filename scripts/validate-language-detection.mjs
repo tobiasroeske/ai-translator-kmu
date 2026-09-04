@@ -4,20 +4,19 @@
 // Runs a fixed dataset N times through the app's own `detectLanguage()` against the live Mistral
 // API and writes a Markdown report with the hit rate.
 //
-// Deliberately NOT a CI assertion: `detectLanguage()`'s pure contract (fed a string, returns a
-// lowercase ISO code) is covered on fixed input/output pairs by lib/ai/*.test.ts, which is what
-// `pnpm ci:test` runs. Whether the *model* names a given language correctly is non-deterministic
-// and has no fixed value to assert — it belongs in a script with a result report, not in a test
-// that would flake CI on the model's behalf.
+// Not a CI assertion: whether the model names a given language correctly is non-deterministic and
+// has no fixed value to assert, so it produces a report rather than a pass/fail. The pure contract
+// around it — fed a string, returns a lowercase ISO code — is covered by lib/ai/*.test.ts.
 //
 // Costs real API calls. Needs MISTRAL_API_KEY in .env.local or exported in the shell.
 //
-//   pnpm validate:language-detection              # 3 runs per text (default)
-//   pnpm validate:language-detection --runs=10    # 10 runs per text
-//   pnpm validate:language-detection --dry-run    # pipeline check, no API calls, no cost
+//   pnpm validate:language-detection                     # 3 runs per text against Mistral
+//   pnpm validate:language-detection --runs=10           # 10 runs per text
+//   pnpm validate:language-detection --provider=ollama   # same run against the local model
+//   pnpm validate:language-detection --dry-run           # pipeline check, no API calls, no cost
 // =============================================================================
 import {
-  forceMistralProvider,
+  applyProvider,
   formatPercent,
   loadLocalEnv,
   parseCommonArgs,
@@ -30,16 +29,13 @@ import {
 
 registerAliasHook();
 loadLocalEnv();
-forceMistralProvider();
 
 const REPORT_PATH = reportPath('language-detection-validation-report.md');
 
-// Short business-correspondence snippets, matching what FA-02 actually receives: real emails and
-// notes, not isolated words a model could match on vocabulary alone. Includes two languages
-// outside the FA-06 catalog (it, pt) deliberately — this measures detectLanguage() naming what it
-// sees, not isSupportedLanguageCode()'s catalog membership decision. The two are separate calls on
-// purpose (see the FA-02 note in CLAUDE.md), so an out-of-catalog language is as valid a case here
-// as an in-catalog one.
+// Short business-correspondence snippets, matching what FA-02 receives: emails and notes, not
+// isolated words a model could match on vocabulary alone. Two languages outside the FA-06 catalog
+// (it, pt) are included because this measures detectLanguage() naming what it sees, not the
+// catalog membership decision that follows it in isSupportedLanguageCode().
 const DATASET = [
   {
     id: 'de-1',
@@ -123,22 +119,20 @@ const DATASET = [
   },
 ];
 
-// The app's own detection function, so the report describes the code path that serves requests
-// rather than a copy of it that could drift.
+// The app's own detection function, so the report describes the code path that serves requests.
 const buildDetector = async () => {
   const { detectLanguage } = await import('@/lib/ai/detect-language');
-  const { DEFAULT_MISTRAL_MODEL, MODEL_TEMPERATURE } = await import('@/lib/ai/provider');
+  const { getModel, MODEL_TEMPERATURE } = await import('@/lib/ai/provider');
 
   return {
     detect: (text) => detectLanguage(text),
-    modelVersion: DEFAULT_MISTRAL_MODEL,
+    modelVersion: getModel().modelId,
     temperature: MODEL_TEMPERATURE,
   };
 };
 
-// Used by --dry-run to exercise aggregation and report generation with no API calls. Deliberately
-// not perfectly accurate: a dry run where everything passes would not prove the mismatch path
-// works.
+// Used by --dry-run to exercise aggregation and report generation with no API calls. One text is
+// reported wrong to exercise the mismatch path.
 const buildFakeDetector = () => ({
   detect: async (text, item) => {
     await sleep(5);
@@ -229,7 +223,7 @@ Not a CI gate — see the header comment in that script for why. Re-run to refre
 | Field | Value |
 | --- | --- |
 | Date | ${meta.date} |
-| Provider | Mistral (\`AI_PROVIDER=mistral\`) |
+| Provider | \`AI_PROVIDER=${meta.provider}\` |
 | Model | ${meta.modelVersion} |
 | Temperature | ${meta.temperature} |
 | Runs per text | ${meta.runs} |
@@ -261,12 +255,15 @@ expected to be detected correctly and then rejected by that guard with a 422 (FA
 };
 
 const main = async () => {
-  const { runs, delayMs, dryRun } = parseCommonArgs(process.argv.slice(2), { defaultRuns: 3 });
-  requireApiKey(dryRun);
+  const { runs, delayMs, dryRun, provider } = parseCommonArgs(process.argv.slice(2), {
+    defaultRuns: 3,
+  });
+  applyProvider(provider);
+  requireApiKey(provider, dryRun);
 
   console.log(
     `Validating language detection: ${DATASET.length} texts × ${runs} run(s)` +
-      (dryRun ? ' [dry run — no API calls]' : ' against Mistral') +
+      (dryRun ? ' [dry run — no API calls]' : ` against ${provider}`) +
       '.'
   );
 
@@ -278,7 +275,7 @@ const main = async () => {
   const summary = summarise(results);
 
   const report = buildReport({
-    meta: { date: new Date().toISOString(), modelVersion, temperature, runs },
+    meta: { date: new Date().toISOString(), provider, modelVersion, temperature, runs },
     summary,
   });
 

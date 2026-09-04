@@ -1,13 +1,11 @@
 import { type LanguageCode } from '@/lib/ai/languages';
 
 // Reads the grammatical register off a translated text, for the FA-08 validation script
-// (scripts/validate-tone.mjs). Not part of the request path: nothing in the app decides anything
-// from this — it exists to measure whether the tone instructions in lib/ai/tone.ts actually land.
+// (scripts/validate-tone.mjs). Nothing in the request path uses it.
 //
-// It checks the one claim those instructions make that a machine can verify: the form of address.
-// "Use the polite form where the target language distinguishes one (Sie / vous / usted)" and, for
-// English, "no contractions" are concrete and falsifiable. Whether a text *reads* as formal beyond
-// that is a judgment call this deliberately does not attempt.
+// It checks the one claim the tone instructions make that a machine can verify: the form of
+// address (Sie / vous / usted), and for English, which has no T–V distinction, the absence of
+// contractions. Whether a text reads as formal beyond that is a judgment call, not a check.
 
 export type Register = 'formal' | 'informal' | 'ambiguous';
 
@@ -20,15 +18,13 @@ export type RegisterAnalysis = {
 type RegisterMarkers = {
   formal: RegExp[];
   informal: RegExp[];
-  // English has no T–V distinction, so there is no positive formal marker to count — the
-  // instruction's claim is the *absence* of contractions. Without this the correct formal case
-  // (no markers of either kind) would score as ambiguous rather than as a hit.
+  // English has no positive formal marker to count: the claim is the absence of contractions, so
+  // no markers of either kind means formal rather than ambiguous.
   formalWhenNoInformalMarker: boolean;
 };
 
-// German capitalises the formal address (Sie/Ihnen/Ihr) and lowercases the informal plural, so the
-// formal patterns are case-sensitive on purpose — matching case-insensitively would count every
-// "sie" ("she"/"they") as formal address.
+// The German formal patterns are case-sensitive: German capitalises the polite address, and
+// matching case-insensitively would count every "sie" ("she"/"they") as one.
 const markers: Record<LanguageCode, RegisterMarkers> = {
   de: {
     formal: [/\bSie\b/g, /\bIhnen\b/g, /\bIhr(?:e|em|en|er|es)?\b/g],
@@ -54,8 +50,8 @@ const markers: Record<LanguageCode, RegisterMarkers> = {
   },
   en: {
     formal: [],
-    // Spelled out rather than matched as a generic apostrophe pattern: "the company's offer" is a
-    // possessive, not a contraction, and would otherwise mark formal prose as informal.
+    // Spelled out rather than matched as a generic apostrophe pattern, which would also catch
+    // possessives like "the company's offer".
     informal: [
       /\b(?:i'm|you're|we're|they're|it's|that's|there's|here's|let's)\b/gi,
       /\b(?:don't|doesn't|didn't|can't|won't|wouldn't|shouldn't|couldn't|isn't|aren't|wasn't|weren't|haven't|hasn't|hadn't)\b/gi,
@@ -85,9 +81,8 @@ export const classifyRegister = (text: string, language: LanguageCode): Register
     };
   }
 
-  // A tie — including a text that addresses nobody at all — is reported as ambiguous rather than
-  // guessed. A short paragraph can legitimately contain no form of address, and scoring that as a
-  // failure would blame the model for the sample.
+  // A tie — including a text that addresses nobody — is reported rather than guessed: a short
+  // paragraph can legitimately carry no form of address.
   if (formalMatches.length === informalMatches.length) {
     return { register: 'ambiguous', formalMatches, informalMatches };
   }

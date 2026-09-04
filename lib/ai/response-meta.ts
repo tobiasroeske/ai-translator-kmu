@@ -1,9 +1,7 @@
 import { isSupportedLanguageCode, type LanguageCode } from '@/lib/ai/languages';
 
 // What /api/translate hands back outside the stream body: the history row it was saved as (FA-07
-// needs this to update a single paragraph later) and the source language it was validated
-// against. Pulled out of translate-provider.tsx so the parsing itself — not just the request — is
-// covered without a running fetch; see lib/ai/response-meta.test.ts.
+// needs this to update a single paragraph later) and the source language it was validated against.
 export type TranslationMeta = {
   id: string | null;
   detectedSourceLanguage: LanguageCode | null;

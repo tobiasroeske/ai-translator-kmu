@@ -14,8 +14,7 @@ describe('buildTranslateSystemPrompt', () => {
     expect(buildTranslateSystemPrompt('informal')).toContain(toneInstructions.informal);
   });
 
-  // Regression guard for the failure mode this rule exists to prevent: a small model stopping
-  // after the first paragraph.
+  // The rule guards against a small model stopping after the first paragraph.
   it('instructs the model to translate the entire text', () => {
     expect(buildTranslateSystemPrompt('neutral')).toMatch(/ENTIRE source text/);
   });
@@ -51,8 +50,7 @@ describe('buildRetranslateSystemPrompt', () => {
     expect(buildRetranslateSystemPrompt('formal')).toContain(toneInstructions.formal);
   });
 
-  // The behaviour lib/ai/prompts.ts exists to preserve: a revision, not a from-scratch
-  // translation — see the FA-07 note in CLAUDE.md.
+  // FA-07 revises the existing paragraph instead of translating the source again.
   it('instructs the model to revise rather than retranslate from scratch', () => {
     expect(buildRetranslateSystemPrompt('neutral')).toMatch(/revise/i);
   });
@@ -81,8 +79,8 @@ describe('buildRetranslateUserPrompt', () => {
     expect(prompt).toContain('Improve the phrasing using your best judgment.');
   });
 
-  // The source paragraph is context, not the subject — a positional mismatch (the model merged or
-  // split paragraphs while translating) must not pull the revision toward the wrong text.
+  // The source paragraph is context, not the subject: it is matched by position and can be the
+  // wrong one, so an unidentified source is omitted rather than guessed.
   it('omits the source section entirely when the source segment is unknown', () => {
     const prompt = buildRetranslateUserPrompt({ ...base, segmentText: '', sourceLanguage: null });
     expect(prompt).not.toContain('Source');

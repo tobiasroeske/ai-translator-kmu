@@ -1,8 +1,8 @@
 import { type LanguageCode, promptLanguageNames } from '@/lib/ai/languages';
 import { type Tone, toneInstructions } from '@/lib/ai/tone';
 
-// Prompt construction pulled out of the routes so it can be covered without a running model — see
-// lib/ai/prompts.test.ts. Text is unchanged from what streamText previously built inline.
+// The prompts both translation routes send. Pure functions so they can be covered without a
+// running model (lib/ai/prompts.test.ts) and reused by the FA-08 validation script.
 
 export const buildTranslateSystemPrompt = (tone: Tone) =>
   'You are a professional business translator.\n\n' +

@@ -22,9 +22,8 @@ describe('parseTranslationMeta', () => {
     });
   });
 
-  // The route only streams for a catalog language, but the header is still just a string until
-  // this function narrows it — a value outside the FA-06 catalog must not reach the client typed
-  // as a LanguageCode.
+  // A header is a string until something narrows it, and this value travels on to
+  // /api/retranslate as a typed field.
   it('treats a source language outside the catalog as unknown rather than trusting the header', () => {
     const headers = new Headers({
       'X-Translation-Id': '3f2504e0-4f89-41d3-9a0c-0305e82c3301',

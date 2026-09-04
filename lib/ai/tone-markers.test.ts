@@ -2,9 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { classifyRegister } from '@/lib/ai/tone-markers';
 
-// The heuristic behind the FA-08 tone report. It is only worth reporting a hit rate from it if it
-// classifies known-formal and known-informal business prose correctly, so the cases here are the
-// ones the report's numbers stand on.
+// The heuristic behind the FA-08 tone report: its hit rate only means something if it classifies
+// known-formal and known-informal business prose correctly.
 describe('classifyRegister', () => {
   describe('German', () => {
     it('reads the capitalised polite address as formal', () => {
@@ -21,8 +20,8 @@ describe('classifyRegister', () => {
       expect(classifyRegister(text, 'de').register).toBe('informal');
     });
 
-    // The reason the German patterns are case-sensitive: "sie" is far more often "she"/"they" than
-    // a miscased polite address, and counting it as formal would inflate every German result.
+    // "sie" is far more often "she"/"they" than a miscased polite address; counting it as formal
+    // would inflate every German result.
     it('does not read lowercase "sie" as the polite address', () => {
       const analysis = classifyRegister('Wir haben sie gestern informiert.', 'de');
       expect(analysis.formalMatches).toHaveLength(0);
@@ -55,7 +54,7 @@ describe('classifyRegister', () => {
   });
 
   describe('English', () => {
-    // English has no T–V distinction, so the instruction's checkable claim is the contraction ban.
+    // No T–V distinction, so the checkable claim is the tone instruction's contraction ban.
     it('reads contractions as informal', () => {
       expect(classifyRegister("Hi Anna, we'll send the quote tomorrow.", 'en').register).toBe(
         'informal'
@@ -69,8 +68,7 @@ describe('classifyRegister', () => {
       expect(classifyRegister(text, 'en').register).toBe('formal');
     });
 
-    // A possessive is not a contraction — without this distinction ordinary formal business prose
-    // ("the company's offer") would be scored as informal.
+    // A possessive is not a contraction, or ordinary formal business prose would score informal.
     it('does not mistake a possessive for a contraction', () => {
       expect(classifyRegister("We have received the company's offer.", 'en').register).toBe(
         'formal'
