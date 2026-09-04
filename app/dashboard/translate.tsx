@@ -50,7 +50,10 @@ const Translate = () => {
     clear,
   } = useTranslate();
 
-  const textToCopy = object?.translatedText ?? segments.join('\n\n') ?? '';
+  // segments (not object) is what's on screen once a translation has finished — a segment
+  // re-translation (FA-07) only ever updates segments, and object keeps the pre-edit text
+  // around after its own stream finishes, so it must not win once segments exist.
+  const textToCopy = segments.length > 0 ? segments.join('\n\n') : (object?.translatedText ?? '');
 
   return (
     <div className="flex flex-col gap-4">
