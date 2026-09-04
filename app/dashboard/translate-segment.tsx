@@ -60,7 +60,7 @@ const TranslationSegment = ({
       setIsCommenting(false);
       setComment('');
     },
-    onError: () => toast.error('Die Neuübersetzung ist fehlgeschlagen. Läuft Ollama?'),
+    onError: () => toast.error('Die Neuübersetzung ist fehlgeschlagen. Bitte versuche es erneut.'),
   });
 
   const handleSubmit = () => {

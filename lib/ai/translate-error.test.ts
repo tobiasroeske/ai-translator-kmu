@@ -45,11 +45,12 @@ describe('parseTranslateError', () => {
     expect(parseTranslateError(new Error('null'))).toEqual({ kind: 'generic' });
   });
 
-  // provider_unavailable is the route's 502 when the provider is unreachable. It has no dedicated
-  // UI treatment: the client shows the same toast as for any other unrecognised failure.
-  it('classifies a provider-unavailable response as generic, same as any other API failure', () => {
-    const body = JSON.stringify({ error: 'provider_unavailable' });
-    expect(parseTranslateError(new Error(body))).toEqual({ kind: 'generic' });
+  // provider_unavailable is the route's 502 when the provider (Ollama or Mistral, whichever is
+  // configured) is unreachable — a distinct case from "some other failure", because the toast
+  // for it must not name a specific provider the client has no way to know is even the active one.
+  it('recognises a provider-unavailable response', () => {
+    const body = JSON.stringify({ error: translateErrorCodes.providerUnavailable });
+    expect(parseTranslateError(new Error(body))).toEqual({ kind: 'provider-unavailable' });
   });
 
   // A timeout or a rate limit never reaches the route's own error bodies: fetch throws, or a
