@@ -104,13 +104,17 @@ to Supabase is verified by running the app.
 ### Model validation
 
 The two `validate:*` scripts measure model behaviour, which has no fixed expected value to assert,
-so they run outside `pnpm test` and write a Markdown report to `docs/` instead of passing or
-failing. Both default to Mistral (the production provider) and need `MISTRAL_API_KEY`; `--dry-run`
-checks the pipeline without calling an API.
+so they run outside `pnpm test` and write a Markdown report instead of passing or failing. Both
+default to Mistral (the production provider) and need `MISTRAL_API_KEY`; `--dry-run` checks the
+pipeline without calling an API.
+
+Each run writes its own timestamped file to `docs/validation/` (`tone-2026-09-11-10-25.md`), so a
+run can be compared against the one before it after a prompt or dataset change. A `--dry-run` keeps
+one fixed `-dry-run.md` name and overwrites only itself.
 
 Because the provider is an abstraction (`lib/ai/provider.ts`), the same datasets run against the
-local Ollama model with `--provider=ollama` — useful for comparing the two, though the reports in
-`docs/` are recorded against Mistral.
+local Ollama model with `--provider=ollama` — useful for comparing the two, though the recorded
+reports are against Mistral.
 
 ## Docker
 
