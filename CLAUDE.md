@@ -54,8 +54,8 @@ active model changes.
 Phase 3 (Finalisierung) work in progress: a Vitest suite covering prompt construction, input validation,
 error classification and the FA-05 notice component (`lib/ai/*.test.ts`, `components/translation-notice.test.tsx`),
 plus two non-deterministic validation scripts (`pnpm validate:language-detection`, `pnpm validate:tone`) that
-measure FA-02 detection accuracy and FA-08 tone adherence against the live model and write a Markdown report
-to `docs/` — see the "Model validation" section in `README.md` for usage.
+measure FA-02 detection accuracy and FA-08 tone adherence against the live model and write a timestamped
+Markdown report per run to `docs/validation/` — see the "Model validation" section in `README.md` for usage.
 
 ---
 
@@ -176,15 +176,16 @@ lib/
 ├── translations/history.ts   → the two Supabase writes (insert, segment update)
 └── utils.ts                  → cn(), createEnumGuard()
 scripts/
-├── validate-language-detection.mjs → FA-02 accuracy vs. the live model, writes a report to docs/
-├── validate-tone.mjs         → FA-08 tone adherence vs. the live model, writes a report to docs/
+├── validate-language-detection.mjs → FA-02 accuracy vs. the live model, writes to docs/validation/
+├── validate-tone.mjs         → FA-08 tone adherence vs. the live model, writes to docs/validation/
 ├── validation-shared.mjs     → shared CLI/report plumbing for the two scripts above
 └── demo-setup.mjs / demo-down.mjs / ollama.mjs / shared.mjs → pnpm demo pipeline
 proxy.ts                       → Next.js middleware entry, delegates to updateSession(), route matcher excludes health/smoke-test/static assets
 supabase/migrations/           → three applied migrations for the translations table
 docs/
 ├── anforderungsdokument.md    → full FA/NFA Anforderungsliste (German), source of truth for requirements
-└── progress-checklist.md      → running status, updated after every completed step
+├── progress-checklist.md      → running status, updated after every completed step
+└── validation/                → one timestamped report per validate:* run, generated (Prettier-ignored)
 .agents/skills/                → vendored Supabase skill docs (auth/RLS/Postgres best practices)
 ```
 

@@ -5,10 +5,11 @@
 // output carries the register the tone instruction asked for. Writes a Markdown report, whose
 // Method and Limitations sections state what the figures do and do not cover.
 //
-// Scored: the form of address (Sie / vous / usted), and for English the contraction ban — the one
-// claim per tone that lib/ai/tone-markers.ts can verify. Not scored: whether the text reads as
-// formal beyond that, which is a human judgment, and `neutral`, whose instruction prescribes no
-// form of address.
+// Scored: the register markers lib/ai/tone-markers.ts can verify — the form of address and the
+// salutation/closing — against both formal and informal source texts, so a tone cannot score well
+// by carrying the source register over. Not scored: whether the text reads as formal beyond those
+// markers, which is a human judgment, and `neutral`, whose instruction prescribes no form of
+// address (it is compared against the `formal` output instead).
 //
 //   pnpm validate:tone                        # 2 runs per case against Mistral
 //   pnpm validate:tone --runs=5               # 5 runs per case
@@ -30,34 +31,56 @@ import {
 registerAliasHook();
 loadLocalEnv();
 
-const REPORT_PATH = reportPath('tone-validation-report.md');
-
 // Every source text addresses the reader directly. A text that addresses nobody cannot carry a
 // form of address in any translation, so it would leave nothing to measure.
+//
+// Both source registers are represented, and the report scores each tone against both. With only
+// formal sources, a model that ignored the tone instruction and carried the source register over
+// would still score close to 100% on `formal` — the figure would say nothing about whether the
+// instruction did any work. Each register is paired with a same-content counterpart (de-1/de-3,
+// en-1/en-3) so the two differ in register and not in subject matter.
 const DATASET = [
   {
     id: 'de-1',
     sourceLanguage: 'de',
+    sourceRegister: 'formal',
     targets: ['en', 'fr', 'es'],
     text: 'Sehr geehrte Frau Berger, können Sie uns bitte bis Freitag bestätigen, ob Sie die geänderten Zeichnungen erhalten haben? Bei Rückfragen erreichen Sie mich jederzeit unter der bekannten Nummer.',
   },
   {
     id: 'de-2',
     sourceLanguage: 'de',
+    sourceRegister: 'formal',
     targets: ['en', 'fr', 'es'],
     text: 'Vielen Dank für Ihre Anfrage. Bitte teilen Sie uns mit, welche Stückzahl Sie benötigen, damit wir Ihnen ein passendes Angebot zusenden können.',
   },
   {
+    id: 'de-3',
+    sourceLanguage: 'de',
+    sourceRegister: 'informal',
+    targets: ['en', 'fr', 'es'],
+    text: 'Hallo Anna, kannst du mir bis Freitag kurz sagen, ob du die geänderten Zeichnungen bekommen hast? Wenn dir etwas unklar ist, ruf mich einfach an.',
+  },
+  {
     id: 'en-1',
     sourceLanguage: 'en',
+    sourceRegister: 'formal',
     targets: ['de'],
     text: 'Dear Ms Berger, could you please confirm by Friday whether you have received the revised drawings? If you have any questions, you can reach me at the usual number.',
   },
   {
     id: 'en-2',
     sourceLanguage: 'en',
+    sourceRegister: 'formal',
     targets: ['de'],
     text: 'Thank you for your enquiry. Please let us know what quantity you require so that we can send you a suitable quotation.',
+  },
+  {
+    id: 'en-3',
+    sourceLanguage: 'en',
+    sourceRegister: 'informal',
+    targets: ['de'],
+    text: "Hi Anna, can you let me know by Friday whether you got the revised drawings? Just give me a call if anything's unclear.",
   },
 ];
 
@@ -96,17 +119,18 @@ const buildTranslator = async () => {
 };
 
 // Canned output for --dry-run, so aggregation and report generation can be checked without
-// spending on API calls. The French informal case returns a vouvoiement text to exercise the
-// deviation path.
+// spending on API calls. The French informal case mixes vouvoiement and tutoiement to exercise
+// the `mixed` path, and the neutral cases repeat the formal text to exercise the identical-output
+// check.
 const DRY_RUN_OUTPUT = {
   en: {
     formal: 'Dear Ms Berger, could you please confirm whether you have received the drawings?',
     informal: "Hi Anna, could you let me know if you've got the drawings?",
-    neutral: 'Dear Ms Berger, please confirm whether you have received the drawings.',
+    neutral: 'Dear Ms Berger, could you please confirm whether you have received the drawings?',
   },
   fr: {
     formal: 'Madame, pourriez-vous nous confirmer votre réception des plans ?',
-    informal: 'Madame, pourriez-vous nous confirmer votre réception des plans ?',
+    informal: 'Merci pour votre demande. Dis-nous combien tu en as besoin.',
     neutral: 'Pourriez-vous nous confirmer votre réception des plans ?',
   },
   es: {
@@ -140,7 +164,7 @@ const runDataset = async ({ translate, classifyRegister, runs, delayMs }) => {
         for (const tone of TONES) {
           const timestamp = new Date().toISOString();
           let translatedText = null;
-          let register = null;
+          let analysis = null;
           let errorMessage = null;
 
           try {
@@ -150,7 +174,7 @@ const runDataset = async ({ translate, classifyRegister, runs, delayMs }) => {
               targetLanguage,
               tone,
             });
-            register = classifyRegister(translatedText, targetLanguage).register;
+            analysis = classifyRegister(translatedText, targetLanguage);
           } catch (error) {
             errorMessage = error instanceof Error ? error.message : String(error);
           }
@@ -159,10 +183,13 @@ const runDataset = async ({ translate, classifyRegister, runs, delayMs }) => {
             runIndex,
             timestamp,
             id: item.id,
+            sourceRegister: item.sourceRegister,
             targetLanguage,
             tone,
             expected: EXPECTED_REGISTER[tone],
-            register,
+            register: analysis?.register ?? null,
+            formalMatches: analysis?.formalMatches ?? [],
+            informalMatches: analysis?.informalMatches ?? [],
             translatedText,
             error: errorMessage,
           });
@@ -176,13 +203,17 @@ const runDataset = async ({ translate, classifyRegister, runs, delayMs }) => {
   return results;
 };
 
-// "opposite" and "ambiguous" are counted apart: a text in the wrong register is a failure, one
-// with no form of address at all is not.
+const emptyCounts = () => ({ formal: 0, informal: 0, mixed: 0, ambiguous: 0, error: 0 });
+
+// The three ways of missing the expected register are counted apart, because they are different
+// failures: the opposite register is the model ignoring the instruction, `mixed` is it applying
+// the instruction to part of the text only, and `ambiguous` is the classifier finding no marker
+// to read — not necessarily a fault of the translation at all.
 const summariseTone = (results, tone) => {
   const forTone = results.filter((r) => r.tone === tone);
   const expected = EXPECTED_REGISTER[tone];
 
-  const counts = { formal: 0, informal: 0, ambiguous: 0, error: 0 };
+  const counts = emptyCounts();
   for (const r of forTone) {
     if (r.error) counts.error += 1;
     else counts[r.register] += 1;
@@ -203,7 +234,7 @@ const summariseByLanguage = (results) => {
   const byLanguage = new Map();
   for (const r of results) {
     const key = `${r.targetLanguage}|${r.tone}`;
-    const bucket = byLanguage.get(key) ?? { total: 0, formal: 0, informal: 0, ambiguous: 0 };
+    const bucket = byLanguage.get(key) ?? { total: 0, ...emptyCounts() };
     bucket.total += 1;
     if (!r.error) bucket[r.register] += 1;
     byLanguage.set(key, bucket);
@@ -211,15 +242,76 @@ const summariseByLanguage = (results) => {
   return byLanguage;
 };
 
+// The point of the split: a tone scored only against sources already written in that register
+// cannot distinguish an instruction that works from a model copying the source.
+const summariseBySourceRegister = (results) => {
+  const bySource = new Map();
+  for (const r of results) {
+    if (EXPECTED_REGISTER[r.tone] === null) continue;
+    const key = `${r.tone}|${r.sourceRegister}`;
+    const bucket = bySource.get(key) ?? { total: 0, hits: 0 };
+    bucket.total += 1;
+    if (!r.error && r.register === r.expected) bucket.hits += 1;
+    bySource.set(key, bucket);
+  }
+  return bySource;
+};
+
+// `neutral` prescribes no form of address, so it cannot be scored — but if its output is the same
+// string as `formal` for the same case, the tone parameter did nothing for it, and that is
+// checkable without any judgment about register.
+const compareNeutralToFormal = (results) => {
+  const formalByCase = new Map(
+    results
+      .filter((r) => r.tone === 'formal' && r.translatedText !== null)
+      .map((r) => [`${r.runIndex}|${r.id}|${r.targetLanguage}`, r.translatedText])
+  );
+
+  let compared = 0;
+  let identical = 0;
+  for (const r of results) {
+    if (r.tone !== 'neutral' || r.translatedText === null) continue;
+    const formalText = formalByCase.get(`${r.runIndex}|${r.id}|${r.targetLanguage}`);
+    if (formalText === undefined) continue;
+    compared += 1;
+    if (formalText === r.translatedText) identical += 1;
+  }
+
+  return { compared, identical };
+};
+
 const truncate = (text, length = 90) =>
   text === null ? '—' : text.length <= length ? text : `${text.slice(0, length)}…`;
 
-const buildReport = ({ meta, results, toneSummaries, byLanguage }) => {
+const formatMarkers = (r) => {
+  const parts = [];
+  if (r.formalMatches.length > 0) parts.push(`formal: ${r.formalMatches.join(', ')}`);
+  if (r.informalMatches.length > 0) parts.push(`informal: ${r.informalMatches.join(', ')}`);
+  return parts.length === 0 ? '—' : truncate(parts.join(' · '), 60);
+};
+
+const buildReport = ({
+  meta,
+  results,
+  toneSummaries,
+  byLanguage,
+  bySourceRegister,
+  neutralVsFormal,
+}) => {
   const languageRows = [...byLanguage.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, b]) => {
       const [language, tone] = key.split('|');
-      return `| ${language} | ${tone} | ${b.formal} | ${b.informal} | ${b.ambiguous} | ${b.total} |`;
+      return `| ${language} | ${tone} | ${b.formal} | ${b.informal} | ${b.mixed} | ${b.ambiguous} | ${b.total} |`;
+    })
+    .join('\n');
+
+  const sourceRegisterRows = [...bySourceRegister.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, b]) => {
+      const [tone, sourceRegister] = key.split('|');
+      const adherence = b.total > 0 ? b.hits / b.total : null;
+      return `| ${tone} | ${sourceRegister} | ${b.hits}/${b.total} | ${formatPercent(adherence)} |`;
     })
     .join('\n');
 
@@ -230,7 +322,7 @@ const buildReport = ({ meta, results, toneSummaries, byLanguage }) => {
     .map(
       (s) =>
         `| ${s.tone} | ${s.expected} | ${s.hits}/${s.total} | ${formatPercent(s.adherence)} | ` +
-        `${s.counts[s.expected === 'formal' ? 'informal' : 'formal']} | ${s.counts.ambiguous} |`
+        `${s.counts[s.expected === 'formal' ? 'informal' : 'formal']} | ${s.counts.mixed} | ${s.counts.ambiguous} |`
     )
     .join('\n');
 
@@ -242,7 +334,7 @@ const buildReport = ({ meta, results, toneSummaries, byLanguage }) => {
           .map(
             (r) =>
               `| ${r.runIndex} | ${r.id} → ${r.targetLanguage} | ${r.tone} | ${r.expected} | ` +
-              `${r.register ?? `error: ${r.error}`} | ${truncate(r.translatedText)} |`
+              `${r.register ?? `error: ${r.error}`} | ${formatMarkers(r)} | ${truncate(r.translatedText)} |`
           )
           .join('\n');
 
@@ -266,56 +358,80 @@ refresh this file.
 
 ## Method
 
-Each source text is translated at each tone, and the output is classified by form of address
-(\`lib/ai/tone-markers.ts\`, itself covered by \`lib/ai/tone-markers.test.ts\`):
+Each source text is translated at each tone, and the output is classified by the register markers
+it carries (\`lib/ai/tone-markers.ts\`, itself covered by \`lib/ai/tone-markers.test.ts\`). Two kinds
+of marker count as evidence: the form of address (the pronouns, plus the second-person verb forms
+in Spanish, which drops the pronoun in most business prose) and the salutation/closing, which is
+the one register signal English has as well.
 
-- **de / fr / es** — polite address (Sie, vous, usted) vs familiar address (du, tu, tú).
-- **en** — no T–V distinction, so the checkable claim is the tone instruction's contraction ban:
-  contractions present → informal, absent → formal.
-- **ambiguous** — the output carried no form of address either way. Counted separately rather than
-  as a failure: a short paragraph can legitimately avoid addressing the reader.
+Nothing is read out of an absence, so a result falls into one of four buckets:
+
+- **formal / informal** — only that register's markers were present.
+- **mixed** — markers of both registers in one text. The tone instruction asks for one register
+  across the whole text, so this is a distinct failure: the instruction reached part of the output
+  only.
+- **ambiguous** — no marker either way. Not counted as a failure: a short paragraph can legitimately
+  carry no salutation and address nobody directly.
 
 \`neutral\` has no expected register — its instruction prescribes "moderate formality" without
 naming a form of address — so it is described below, not scored.
 
+The dataset carries both formal and informal source texts, and the scores are broken down by
+source register below. Scored against formal sources only, a model that ignored the tone
+instruction and carried the source register over would still score close to 100% on \`formal\`.
+
 ## Scored tones
 
-| Tone | Expected | Hits | Adherence | Opposite register | Ambiguous |
-| --- | --- | --- | --- | --- | --- |
+| Tone | Expected | Hits | Adherence | Opposite register | Mixed | Ambiguous |
+| --- | --- | --- | --- | --- | --- | --- |
 ${scoredRows}
+
+## By source register
+
+Whether a tone holds up when the source text is written in the other register:
+
+| Tone | Source register | Hits | Adherence |
+| --- | --- | --- | --- |
+${sourceRegisterRows}
 
 ## Neutral (descriptive)
 
 What the model chose when the tone instruction left the form of address open:
 
-| Formal | Informal | Ambiguous | Total |
-| --- | --- | --- | --- |
-| ${neutral.counts.formal} | ${neutral.counts.informal} | ${neutral.counts.ambiguous} | ${neutral.total} |
+| Formal | Informal | Mixed | Ambiguous | Total |
+| --- | --- | --- | --- | --- |
+| ${neutral.counts.formal} | ${neutral.counts.informal} | ${neutral.counts.mixed} | ${neutral.counts.ambiguous} | ${neutral.total} |
+
+Identical to the \`formal\` output for the same case: **${neutralVsFormal.identical}/${neutralVsFormal.compared}**.
+A high count here would mean the tone parameter changes nothing for \`neutral\`.
 
 ## By target language
 
-| Language | Tone | Formal | Informal | Ambiguous | Calls |
-| --- | --- | --- | --- | --- | --- |
+| Language | Tone | Formal | Informal | Mixed | Ambiguous | Calls |
+| --- | --- | --- | --- | --- | --- | --- |
 ${languageRows}
 
 ## Deviations
 
-| Run | Case | Tone | Expected | Actual | Output (truncated) |
-| --- | --- | --- | --- | --- | --- |
+| Run | Case | Tone | Expected | Actual | Markers | Output (truncated) |
+| --- | --- | --- | --- | --- | --- | --- |
 ${deviationRows}
 
 ## Limitations
 
-- The classifier measures the **form of address only**, not overall register quality: a text using
-  "Sie" throughout while sounding brusque still scores as formal.
+- The classifier measures **grammatical and formulaic markers**, not overall register quality: a
+  text using "Sie" and a formal salutation throughout while sounding brusque still scores as formal.
 - French \`vous\` is both the polite singular and the plain plural, so a message addressed to a
   company can read as formal here regardless of the tone requested.
-- Spanish \`su\`/\`le\` double as third-person forms, which can register as formal markers without
-  being address forms.
-- English formality is inferred from the absence of contractions, which the tone instruction asks
-  for explicitly but which is necessary rather than sufficient for a formal register.
+- Spanish \`usted\` is detected by pronoun and salutation only. Its verb forms are homographs of the
+  third person (\`ha\`, \`tiene\`, \`podría\`), so unlike the \`tú\` forms they cannot be read as an
+  address; a pronoun-less usted text without a salutation therefore lands in \`ambiguous\`.
+- English has no T–V distinction. Its markers are contractions and the salutation/closing, so a
+  short English text with neither is \`ambiguous\` rather than assigned a register.
 - Sample sizes are small by design (this is a demonstrator, not a benchmark); raise \`--runs\` for
-  a tighter figure.
+  a tighter figure. At the default of ${meta.runs} runs a single case is worth
+  ${formatPercent(1 / (results.length / TONES.length))} of a tone's adherence, so small differences
+  between runs are noise.
 `;
 };
 
@@ -325,6 +441,8 @@ const main = async () => {
   });
   applyProvider(provider);
   requireApiKey(provider, dryRun);
+
+  const REPORT_PATH = reportPath('tone', { dryRun });
 
   const { classifyRegister } = await import('@/lib/ai/tone-markers');
 
@@ -354,21 +472,25 @@ const main = async () => {
     results,
     toneSummaries,
     byLanguage: summariseByLanguage(results),
+    bySourceRegister: summariseBySourceRegister(results),
+    neutralVsFormal: compareNeutralToFormal(results),
   });
 
   writeReport(REPORT_PATH, report);
 
   for (const summary of toneSummaries) {
     if (summary.expected === null) {
-      const { formal, informal, ambiguous } = summary.counts;
+      const { formal, informal, mixed, ambiguous } = summary.counts;
       console.log(
-        `  neutral (descriptive): ${formal} formal, ${informal} informal, ${ambiguous} ambiguous`
+        `  neutral (descriptive): ${formal} formal, ${informal} informal, ${mixed} mixed, ` +
+          `${ambiguous} ambiguous`
       );
       continue;
     }
     console.log(
       `  ${summary.tone}: ${summary.hits}/${summary.total} (${formatPercent(summary.adherence)}) ` +
-        `carried the ${summary.expected} form of address`
+        `carried the ${summary.expected} register ` +
+        `(${summary.counts.mixed} mixed, ${summary.counts.ambiguous} ambiguous)`
     );
   }
 

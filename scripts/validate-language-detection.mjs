@@ -30,8 +30,6 @@ import {
 registerAliasHook();
 loadLocalEnv();
 
-const REPORT_PATH = reportPath('language-detection-validation-report.md');
-
 // Short business-correspondence snippets, matching what FA-02 receives: emails and notes, not
 // isolated words a model could match on vocabulary alone. Two languages outside the FA-06 catalog
 // (it, pt) are included because this measures detectLanguage() naming what it sees, not the
@@ -260,6 +258,8 @@ const main = async () => {
   });
   applyProvider(provider);
   requireApiKey(provider, dryRun);
+
+  const REPORT_PATH = reportPath('language-detection', { dryRun });
 
   console.log(
     `Validating language detection: ${DATASET.length} texts × ${runs} run(s)` +

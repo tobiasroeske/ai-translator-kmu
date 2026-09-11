@@ -66,7 +66,17 @@ export const writeReport = (path, content) => {
   writeFileSync(path, content);
 };
 
-export const reportPath = (filename) => join(ROOT, 'docs', filename);
+// Every measured run writes its own file instead of replacing the last one. These reports record
+// how a named model behaved on a given day, and comparing a run against the one before it — after
+// a prompt or dataset change — is what they are for; overwriting throws that away. A dry run is a
+// pipeline check with canned output, so it keeps one fixed name and overwrites only itself,
+// where it can never land on top of a measured result.
+export const reportPath = (slug, { dryRun = false } = {}) => {
+  if (dryRun) return join(ROOT, 'docs', 'validation', `${slug}-dry-run.md`);
+
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+  return join(ROOT, 'docs', 'validation', `${slug}-${stamp}.md`);
+};
 
 // Set from the flag rather than followed from .env.local: the reports characterise a named
 // provider, so the run decides which one instead of inheriting whatever local dev points at.

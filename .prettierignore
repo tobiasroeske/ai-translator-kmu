@@ -16,6 +16,9 @@ out
 build
 coverage
 
+# written by the validate:* scripts — generated per run, not hand-maintained
+docs/validation
+
 # Logs
 *.log
 
